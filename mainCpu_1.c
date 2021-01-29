@@ -117,6 +117,7 @@ float RFFToutBuff[RFFT_SIZE];
 float RFFTF32Coef[RFFT_SIZE];
 
 #if USE_TEST_INPUT == 1
+/*
 float RFFTgoldenOut[RFFT_SIZE] = {
     #include "data_output_1.h"
 };
@@ -124,6 +125,7 @@ float RFFTgoldenOut[RFFT_SIZE] = {
 float RFFTgoldenMagnitude[RFFT_SIZE/2+1] = {
     #include "data_output_2.h"
 };
+*/
 #endif //USE_TEST_INPUT == 1
 // 12 for 12-bit conversion resolution, which support (ADC_MODE_SINGLE_ENDED)
 // Sample on single pin with VREFLO
@@ -200,6 +202,7 @@ void fft_routine()
         RFFTmagBuff[i] = 0;                //Clean up magnitude buffer
     }
     RFFT_adc_f32(hnd_rfft_adc);        // Calculate real FFT with 12-bit
+    /*
     for(i = 0; i < RFFT_SIZE; i++){
         if(fabs(RFFTgoldenOut[i] - hnd_rfft->OutBuf[i]) <= EPSILON){
             pass++;
@@ -207,9 +210,11 @@ void fft_routine()
             fail++;
         }
     }
+    */
 
     flagInputReady = 0;                 // Reset the flag
     RFFT_f32_mag(hnd_rfft);             //Calculate magnitude
+    /*
     for(i = 0; i <= RFFT_SIZE/2; i++){
         if(fabs(RFFTgoldenMagnitude[i] - hnd_rfft->MagBuf[i]) <= EPSILON){
             pass++;
@@ -217,6 +222,7 @@ void fft_routine()
             fail++;
         }
     }
+    */
     j = 1;
     freq = RFFTmagBuff[1];
     for(i=2;i<RFFT_SIZE/2+1;i++){
@@ -241,10 +247,30 @@ void main(void)
     initADC();
     initEPWM();
     initADCSOC();
-
     for(index = 0; index < RESULTS_BUFFER_SIZE; index++)
     {
         adcAResults_1[index] = 0;
+        adcAResults_2[index] = 0;
+        adcAResults_3[index] = 0;
+        adcAResults_4[index] = 0;
+        adcAResults_5[index] = 0;
+        adcAResults_6[index] = 0;
+        /*
+        adcAResults_7[index] = 0;
+        adcAResults_8[index] = 0;
+        adcAResults_9[index] = 0;
+        adcAResults_10[index] = 0;
+        adcAResults_11[index] = 0;
+        adcAResults_12[index] = 0;
+        adcAResults_13[index] = 0;
+        adcAResults_14[index] = 0;
+        adcAResults_15[index] = 0;
+        adcAResults_16[index] = 0;
+        adcAResults_17[index] = 0;
+        adcAResults_18[index] = 0;
+        adcAResults_19[index] = 0;
+        adcAResults_20[index] = 0;
+        */
     }
     index = 0;
     bufferFull = 0;
