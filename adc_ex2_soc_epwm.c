@@ -273,29 +273,16 @@ void main(void)
 //
 void initADC(void)
 {
-    //
-    // Set ADCCLK divider to /4
-    //
-    ADC_setPrescaler(ADCA_BASE, ADC_CLK_DIV_4_0);
-
-    //
-    // Set resolution and signal mode (see #defines above) and load
-    // corresponding trims.
-    //
-#if(EX_ADC_RESOLUTION == 12)
-    ADC_setMode(ADCA_BASE, ADC_RESOLUTION_12BIT, ADC_MODE_SINGLE_ENDED);
-#elif(EX_ADC_RESOLUTION == 16)
-    ADC_setMode(ADCA_BASE, ADC_RESOLUTION_16BIT, ADC_MODE_DIFFERENTIAL);
-#endif
-    //
-    // Set pulse positions to late
-    //
-    ADC_setInterruptPulseMode(ADCA_BASE, ADC_PULSE_END_OF_CONV);
-
-    //
-    // Power up the ADC and then delay for 1 ms
-    //
-    ADC_enableConverter(ADCA_BASE);
+    ADC_setPrescaler(ADCA_BASE, ADC_CLK_DIV_4_0); // Set ADCCLK divider to /4
+    ADC_setMode(ADCA_BASE, ADC_RESOLUTION_12BIT, ADC_MODE_SINGLE_ENDED); // // Set resolution and signal mode (see #defines above) and load // corresponding trims.
+    ADC_setInterruptPulseMode(ADCA_BASE, ADC_PULSE_END_OF_CONV); // Set pulse positions to late
+    ADC_setInterruptPulseMode(ADCB_BASE, ADC_PULSE_END_OF_CONV); // Set pulse positions to late
+    ADC_setInterruptPulseMode(ADCC_BASE, ADC_PULSE_END_OF_CONV); // Set pulse positions to late
+    ADC_setInterruptPulseMode(ADCD_BASE, ADC_PULSE_END_OF_CONV); // Set pulse positions to late
+    ADC_enableConverter(ADCA_BASE); // Power up the ADC and then delay for 1 ms
+    ADC_enableConverter(ADCB_BASE); // Power up the ADC and then delay for 1 ms
+    ADC_enableConverter(ADCC_BASE); // Power up the ADC and then delay for 1 ms
+    ADC_enableConverter(ADCD_BASE); // Power up the ADC and then delay for 1 ms
     DEVICE_DELAY_US(1000);
 }
 
@@ -304,27 +291,12 @@ void initADC(void)
 //
 void initEPWM(void)
 {
-    //
-    // Disable SOCA
-    //
-    EPWM_disableADCTrigger(EPWM1_BASE, EPWM_SOC_A);
-
-    //
-    // Configure the SOC to occur on the first up-count event
-    //
-    EPWM_setADCTriggerSource(EPWM1_BASE, EPWM_SOC_A, EPWM_SOC_TBCTR_U_CMPA);
+    EPWM_disableADCTrigger(EPWM1_BASE, EPWM_SOC_A); // Disable SOCA
+    EPWM_setADCTriggerSource(EPWM1_BASE, EPWM_SOC_A, EPWM_SOC_TBCTR_U_CMPA); // Configure the SOC to occur on the first up-count event
     EPWM_setADCTriggerEventPrescale(EPWM1_BASE, EPWM_SOC_A, 1);
-
-    //
-    // Set the compare A value to 2048 and the period to 4096
-    //
-    EPWM_setCounterCompareValue(EPWM1_BASE, EPWM_COUNTER_COMPARE_A, 0x0800);
+    EPWM_setCounterCompareValue(EPWM1_BASE, EPWM_COUNTER_COMPARE_A, 0x0800); // Set the compare A value to 2048 and the period to 4096
     EPWM_setTimeBasePeriod(EPWM1_BASE, 0x1000);
-
-    //
-    // Freeze the counter
-    //
-    EPWM_setTimeBaseCounterMode(EPWM1_BASE, EPWM_COUNTER_MODE_STOP_FREEZE);
+    EPWM_setTimeBaseCounterMode(EPWM1_BASE, EPWM_COUNTER_MODE_STOP_FREEZE); // Freeze the counter
 }
 
 //
@@ -340,14 +312,33 @@ void initADCSOC(void)
     // SYSCLK rate) will be used.  For 16-bit resolution, a sampling window of
     // 64 (320 ns at a 200MHz SYSCLK rate) will be used.
     //
-#if(EX_ADC_RESOLUTION == 12)
-       ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER0, ADC_TRIGGER_EPWM1_SOCA,
-                    ADC_CH_ADCIN0, 15);
-#elif(EX_ADC_RESOLUTION == 16)
-       ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER0, ADC_TRIGGER_EPWM1_SOCA,
-                    ADC_CH_ADCIN0, 64);
-#endif
+    //ADCA_BASE
+       ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER0, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN0, 15);//VIN_R
+       ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER1, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN1, 15);//VSTS_R
+       ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER2, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN2, 15);//VO_R
+       ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER3, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN3, 15);//IIN_R
+       ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER4, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN4, 15);//IINV_R
+       ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER5, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN5, 15);//IO_R
+       ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER14, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN14, 15);//THR1
+       ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER15, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN15, 15);//THR2
 
+    //ADCB_BASE
+       ADC_setupSOC(ADCB_BASE, ADC_SOC_NUMBER0, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN0, 15);//VIN_S
+       ADC_setupSOC(ADCB_BASE, ADC_SOC_NUMBER1, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN1, 15);//VSTS_S1
+       ADC_setupSOC(ADCB_BASE, ADC_SOC_NUMBER2, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN2, 15);//VO_S
+       ADC_setupSOC(ADCB_BASE, ADC_SOC_NUMBER3, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN3, 15);//IIN_S
+
+    //ADCC_BASE
+       ADC_setupSOC(ADCC_BASE, ADC_SOC_NUMBER2, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN2, 15);//VO_T
+       ADC_setupSOC(ADCC_BASE, ADC_SOC_NUMBER3, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN3, 15);//IO_S
+       ADC_setupSOC(ADCC_BASE, ADC_SOC_NUMBER4, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN4, 15);//IINV_R
+
+    //ADCD_BASE
+       ADC_setupSOC(ADCD_BASE, ADC_SOC_NUMBER0, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN0, 15);//VBAT
+       ADC_setupSOC(ADCD_BASE, ADC_SOC_NUMBER1, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN1, 15);//VSTS_S
+       ADC_setupSOC(ADCD_BASE, ADC_SOC_NUMBER2, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN2, 15);//IBAT
+       ADC_setupSOC(ADCD_BASE, ADC_SOC_NUMBER3, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN3, 15);//IO_T
+       ADC_setupSOC(ADCD_BASE, ADC_SOC_NUMBER4, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN4, 15);//THR2
     //
     // Set SOC0 to set the interrupt 1 flag. Enable the interrupt and make
     // sure its flag is cleared.
