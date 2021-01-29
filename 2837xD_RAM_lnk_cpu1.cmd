@@ -56,12 +56,13 @@ PAGE 1 :
    CANB_MSG_RAM     : origin = 0x04B000, length = 0x000800
 }
 
-
+// RAMLS4 is moved from .text , due to memory./
+// Later it will be recovered , RFFTgoldenOut
 SECTIONS
 {
    codestart        : > BEGIN,     PAGE = 0
-   .text            : >> RAMD0 |  RAMLS0 | RAMLS1 | RAMLS2 | RAMLS3 | RAMLS4,   PAGE = 0
-   .cinit           : > RAMM0,     PAGE = 0
+   .text            : >> RAMD0 |  RAMLS0 | RAMLS1 | RAMLS2 | RAMLS3 ,   PAGE = 0
+   .cinit           : > RAMM0 | RAMLS4,     PAGE = 0
    .switch          : > RAMM0,     PAGE = 0
    .reset           : > RESET,     PAGE = 0, TYPE = DSECT /* not used, */
    .stack           : > RAMM1,     PAGE = 1
@@ -70,7 +71,7 @@ SECTIONS
    .bss             : > RAMLS5,    PAGE = 1
    .bss:output      : > RAMLS3,    PAGE = 0
    .init_array      : > RAMM0,     PAGE = 0
-   .const           : > RAMLS5,    PAGE = 1
+   .const           : > RAMLS5 | RAMGS15     ,    PAGE = 1
    .data            : > RAMLS5,    PAGE = 1
    .sysmem          : > RAMLS5,    PAGE = 1
 #else
@@ -85,7 +86,10 @@ SECTIONS
 
    ramgs0           : > RAMGS0,    PAGE = 1
    ramgs1           : > RAMGS1,    PAGE = 1
-   RFFTdata1        : > RAMGS2 | RAMGS3,   PAGE = 1, ALIGN = RFFT_ALIGNMENT
+   RFFTdata1        : > RAMGS2 ,   PAGE = 1, ALIGN = RFFT_ALIGNMENT
+   RFFTdata2        : > RAMGS3 ,   PAGE = 1, ALIGN = RFFT_ALIGNMENT
+   RFFTdata3        : > RAMGS4 ,   PAGE = 1, ALIGN = RFFT_ALIGNMENT
+   RFFTdata4        : > RAMGS5 ,   PAGE = 1, ALIGN = RFFT_ALIGNMENT
 
 #ifdef __TI_COMPILER_VERSION__
    #if __TI_COMPILER_VERSION__ >= 15009000

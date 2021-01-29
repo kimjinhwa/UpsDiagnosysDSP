@@ -40,5 +40,13 @@
 			<name>C2000WARE_ROOT</name>
 			<value>$%7BCOM_TI_C2000WARE_SOFTWARE_PACKAGE_INSTALL_DIR%7D</value>
 		</variable>
+		<variable>
+			<name>INSTALLROOT_2837X</name>
+			<value>file:/C:/ti/C2000Ware_3_03_00_00_Software/device_support/f2837xd</value>
+		</variable>
+		<variable>
+			<name>INSTALLROOT_TO_FPU</name>
+			<value>file:/C:/ti/C2000Ware_3_03_00_00_Software/libraries/dsp/FPU/c28/include</value>
+		</variable>
 	</variableList>
 </projectDescription>

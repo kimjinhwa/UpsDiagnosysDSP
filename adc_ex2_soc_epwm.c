@@ -88,6 +88,43 @@ extern uint16_t RFFTin1Buff[2*RFFT_SIZE];
 #endif
 uint16_t RFFTin1Buff[2*RFFT_SIZE];
 #endif
+
+#ifdef __cplusplus
+#pragma DATA_SECTION("RFFTdata2")
+#else
+#pragma DATA_SECTION(RFFTmagBuff,"RFFTdata2")
+#endif //__cplusplus
+//! \brief Magnitude Calculation Buffer
+//!
+float RFFTmagBuff[RFFT_SIZE/2+1];
+
+#ifdef __cplusplus
+#pragma DATA_SECTION("RFFTdata3")
+#else
+#pragma DATA_SECTION(RFFToutBuff,"RFFTdata3")
+#endif //__cplusplus
+//! \brief FFT Calculation Buffer
+//! \note If the number of FFT stages is even, the result of the FFT will
+//! be written to this buffer
+//!
+float RFFToutBuff[RFFT_SIZE];
+
+#ifdef __cplusplus
+#pragma DATA_SECTION("RFFTdata4")
+#else
+#pragma DATA_SECTION(RFFTF32Coef,"RFFTdata4")
+#endif //__cplusplus
+float RFFTF32Coef[RFFT_SIZE];
+
+#if USE_TEST_INPUT == 1
+float RFFTgoldenOut[RFFT_SIZE] = {
+    #include "data_output_1.h"
+};
+
+float RFFTgoldenMagnitude[RFFT_SIZE/2+1] = {
+    #include "data_output_2.h"
+};
+#endif //USE_TEST_INPUT == 1
 // 12 for 12-bit conversion resolution, which support (ADC_MODE_SINGLE_ENDED)
 // Sample on single pin with VREFLO
 // Or 16 for 16-bit conversion resolution, which support (ADC_MODE_DIFFERENTIAL)
@@ -110,8 +147,72 @@ __interrupt void adcA1ISR(void);
 //
 // Main
 //
+#include "fpu_rfft.h"            // Main include file
+#include "math.h"
+RFFT_F32_STRUCT rfft;
+RFFT_ADC_F32_STRUCT rfft_adc;
+RFFT_ADC_F32_STRUCT_Handle hnd_rfft_adc = &rfft_adc;
+RFFT_F32_STRUCT rfft;
+RFFT_F32_STRUCT_Handle hnd_rfft = &rfft;
+volatile uint16_t flagInputReady = 0;
+volatile uint16_t sampleIndex = 0;
+uint16_t pass = 0;
+uint16_t fail = 0;
+#define EPSILON         0.1
+void fft_routine()
+{
+    uint16_t i, j;
+    float freq = 0.0;
+    hnd_rfft_adc->Tail = &(hnd_rfft->OutBuf);
+
+    hnd_rfft->FFTSize   = RFFT_SIZE;       //FFT size
+    hnd_rfft->FFTStages = RFFT_STAGES;     //FFT stages
+
+    hnd_rfft_adc->InBuf = &RFFTin1Buff[0]; //Input buffer (12-bit ADC) input
+    hnd_rfft->OutBuf    = &RFFToutBuff[0]; //Output buffer
+    hnd_rfft->CosSinBuf = &RFFTF32Coef[0]; //Twiddle factor
+    hnd_rfft->MagBuf    = &RFFTmagBuff[0]; //Magnitude output buffer
+    RFFT_f32_sincostable(hnd_rfft);        //Calculate twiddle factor
+    for (i=0; i < RFFT_SIZE; i++){
+        RFFToutBuff[i] = 0;                //Clean up output buffer
+    }
+
+    for (i=0; i < RFFT_SIZE/2; i++){
+        RFFTmagBuff[i] = 0;                //Clean up magnitude buffer
+    }
+    RFFT_adc_f32(hnd_rfft_adc);        // Calculate real FFT with 12-bit
+    for(i = 0; i < RFFT_SIZE; i++){
+        if(fabs(RFFTgoldenOut[i] - hnd_rfft->OutBuf[i]) <= EPSILON){
+            pass++;
+        }else{
+            fail++;
+        }
+    }
+
+    flagInputReady = 0;                 // Reset the flag
+    RFFT_f32_mag(hnd_rfft);             //Calculate magnitude
+    for(i = 0; i <= RFFT_SIZE/2; i++){
+        if(fabs(RFFTgoldenMagnitude[i] - hnd_rfft->MagBuf[i]) <= EPSILON){
+            pass++;
+        }else{
+            fail++;
+        }
+    }
+    j = 1;
+    freq = RFFTmagBuff[1];
+    for(i=2;i<RFFT_SIZE/2+1;i++){
+        //Looking for the maximum component of frequency spectrum
+        if(RFFTmagBuff[i] > freq){
+            j = i;
+            freq = RFFTmagBuff[i];
+        }
+    }
+    freq = F_PER_SAMPLE * (float)j;
+    for(;;);
+}
 void main(void)
 {
+    fft_routine();
     Device_init();
     Device_initGPIO();
     Interrupt_initModule();
