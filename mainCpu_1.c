@@ -13,7 +13,7 @@
 //!  - A0 should be connected to a signal to convert
 //!
 //! \b Watch \b Variables \n
-//! - \b adcAResults - A sequence of analog-to-digital conversion samples from
+//! - \b adcAResults_1 - A sequence of analog-to-digital conversion samples from
 //!   pin A0. The time between samples is determined based on the period
 //!   of the ePWM timer.
 //!
@@ -70,7 +70,7 @@
 #define EPWM1_DUTY_CYCLE        250
 #define EPWM2_PERIOD            50000
 #define EPWM2_DUTY_CYCLE        25000
-#define RESULTS_BUFFER_SIZE     256
+#define RESULTS_BUFFER_SIZE     800
 #define EX_ADC_RESOLUTION       12
 
 #define RFFT_STAGES     9
@@ -132,7 +132,26 @@ float RFFTgoldenMagnitude[RFFT_SIZE/2+1] = {
 //
 // Globals
 //
-uint16_t adcAResults[RESULTS_BUFFER_SIZE];   // Buffer for results
+uint16_t adcAResults_1[RESULTS_BUFFER_SIZE];   // Buffer for results
+uint16_t adcAResults_2[RESULTS_BUFFER_SIZE];   // Buffer for results
+uint16_t adcAResults_3[RESULTS_BUFFER_SIZE];   // Buffer for results
+uint16_t adcAResults_4[RESULTS_BUFFER_SIZE];   // Buffer for results
+uint16_t adcAResults_5[RESULTS_BUFFER_SIZE];   // Buffer for results
+uint16_t adcAResults_6[RESULTS_BUFFER_SIZE];   // Buffer for results
+uint16_t adcAResults_7[RESULTS_BUFFER_SIZE];   // Buffer for results
+uint16_t adcAResults_8[RESULTS_BUFFER_SIZE];   // Buffer for results
+uint16_t adcAResults_9[RESULTS_BUFFER_SIZE];   // Buffer for results
+uint16_t adcAResults_10[RESULTS_BUFFER_SIZE];   // Buffer for results
+uint16_t adcAResults_11[RESULTS_BUFFER_SIZE];   // Buffer for results
+uint16_t adcAResults_12[RESULTS_BUFFER_SIZE];   // Buffer for results
+uint16_t adcAResults_13[RESULTS_BUFFER_SIZE];   // Buffer for results
+uint16_t adcAResults_14[RESULTS_BUFFER_SIZE];   // Buffer for results
+uint16_t adcAResults_15[RESULTS_BUFFER_SIZE];   // Buffer for results
+uint16_t adcAResults_16[RESULTS_BUFFER_SIZE];   // Buffer for results
+uint16_t adcAResults_17[RESULTS_BUFFER_SIZE];   // Buffer for results
+uint16_t adcAResults_18[RESULTS_BUFFER_SIZE];   // Buffer for results
+uint16_t adcAResults_19[RESULTS_BUFFER_SIZE];   // Buffer for results
+uint16_t adcAResults_20[RESULTS_BUFFER_SIZE];   // Buffer for results
 uint16_t index;                              // Index into result buffer
 volatile uint16_t bufferFull;                // Flag to indicate buffer is full
 
@@ -225,7 +244,7 @@ void main(void)
 
     for(index = 0; index < RESULTS_BUFFER_SIZE; index++)
     {
-        adcAResults[index] = 0;
+        adcAResults_1[index] = 0;
     }
     index = 0;
     bufferFull = 0;
@@ -260,7 +279,7 @@ void main(void)
 
         //
         // Software breakpoint. At this point, conversion results are stored in
-        // adcAResults.
+        // adcAResults_1.
         //
         // Hit run again to get updated conversions.
         //
@@ -355,7 +374,7 @@ __interrupt void adcA1ISR(void)
     //
     // Add the latest result to the buffer
     //
-    adcAResults[index++] = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER0);
+    adcAResults_1[index++] = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER0);
 
     //
     // Set the bufferFull flag if the buffer is full
