@@ -68,10 +68,10 @@ SECTIONS
    .stack           : > RAMM1,     PAGE = 1
 
 #if defined(__TI_EABI__)
-   .bss             : > RAMLS5 | RAMGS11 | RAMGS12 | RAMGS13   | RAMGS14      ,    PAGE = 1
+   .bss             : > RAMLS5   ,    PAGE = 1
    .bss:output      : > RAMLS3,    PAGE = 0
    .init_array      : > RAMM0,     PAGE = 0
-   .const           : > RAMGS15     ,    PAGE = 1
+   .const           : > RAMGS6     ,    PAGE = 1
    .data            : > RAMLS5,    PAGE = 1
    .sysmem          : > RAMLS5,    PAGE = 1
 #else
@@ -86,11 +86,14 @@ SECTIONS
 
    ramgs0           : > RAMGS0,    PAGE = 1
    ramgs1           : > RAMGS1,    PAGE = 1
-   RFFTdata1        : > RAMGS2 ,   PAGE = 1, ALIGN = RFFT_ALIGNMENT
-   RFFTdata2        : > RAMGS3 ,   PAGE = 1, ALIGN = RFFT_ALIGNMENT
-   RFFTdata3        : > RAMGS4 ,   PAGE = 1, ALIGN = RFFT_ALIGNMENT
-   RFFTdata4        : > RAMGS5 ,   PAGE = 1, ALIGN = RFFT_ALIGNMENT
-
+   RFFTdata1        : > RAMGS10 ,   PAGE = 1, ALIGN = RFFT_ALIGNMENT
+   RFFTdata2        : > RAMGS11 ,   PAGE = 1, ALIGN = RFFT_ALIGNMENT
+   RFFTdata3        : > RAMGS11 ,   PAGE = 1, ALIGN = RFFT_ALIGNMENT
+   RFFTdata4        : > RAMGS11 ,   PAGE = 1, ALIGN = RFFT_ALIGNMENT
+   ADCBUFFER1		: > RAMGS12,   PAGE = 1
+   ADCBUFFER2		: > RAMGS13,   PAGE = 1
+   ADCBUFFER3		: > RAMGS14,   PAGE = 1
+   ADCBUFFER4		: > RAMGS15,   PAGE = 1
 #ifdef __TI_COMPILER_VERSION__
    #if __TI_COMPILER_VERSION__ >= 15009000
     .TI.ramfunc : {} > RAMM0,      PAGE = 0

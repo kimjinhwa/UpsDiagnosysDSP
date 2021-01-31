@@ -60,9 +60,7 @@
 #include "driverlib.h"
 #include "device.h"
 
-//
 // Defines
-//
 #define CPU_FRQ_200MHZ          1
 #define ADC_SAMPLING_FREQ       100000.0L
 #define EPWM_HSPCLKDIV          1           //EPWM_CLOCK is SYSCLK/(2*2)
@@ -76,37 +74,14 @@
 #define RFFT_STAGES     9
 #define RFFT_SIZE       (1 << RFFT_STAGES)
 #define F_PER_SAMPLE    (ADC_SAMPLING_FREQ/(float)RFFT_SIZE)
-#define USE_TEST_INPUT  1 // If not in test mode, exclude signal.asm
-                          // from the build
-#if USE_TEST_INPUT == 1
-extern uint16_t RFFTin1Buff[2*RFFT_SIZE];
-#else
-#ifdef __cplusplus
-#pragma DATA_SECTION("RFFTdata1")
-#else
-#pragma DATA_SECTION(RFFTin1Buff,"RFFTdata1")
-#endif
-uint16_t RFFTin1Buff[2*RFFT_SIZE];
-#endif
 
-#ifdef __cplusplus
-#pragma DATA_SECTION("RFFTdata2")
-#else
+#pragma DATA_SECTION(RFFTin1Buff,"RFFTdata1")
+uint16_t RFFTin1Buff[2*RFFT_SIZE];
+
 #pragma DATA_SECTION(RFFTmagBuff,"RFFTdata2")
-#endif //__cplusplus
-//! \brief Magnitude Calculation Buffer
-//!
 float RFFTmagBuff[RFFT_SIZE/2+1];
 
-#ifdef __cplusplus
-#pragma DATA_SECTION("RFFTdata3")
-#else
 #pragma DATA_SECTION(RFFToutBuff,"RFFTdata3")
-#endif //__cplusplus
-//! \brief FFT Calculation Buffer
-//! \note If the number of FFT stages is even, the result of the FFT will
-//! be written to this buffer
-//!
 float RFFToutBuff[RFFT_SIZE];
 
 #ifdef __cplusplus
@@ -115,27 +90,45 @@ float RFFToutBuff[RFFT_SIZE];
 #pragma DATA_SECTION(RFFTF32Coef,"RFFTdata4")
 #endif //__cplusplus
 float RFFTF32Coef[RFFT_SIZE];
-
-#if USE_TEST_INPUT == 1
-/*
-float RFFTgoldenOut[RFFT_SIZE] = {
-    #include "data_output_1.h"
-};
-
-float RFFTgoldenMagnitude[RFFT_SIZE/2+1] = {
-    #include "data_output_2.h"
-};
-*/
-#endif //USE_TEST_INPUT == 1
-// 12 for 12-bit conversion resolution, which support (ADC_MODE_SINGLE_ENDED)
-// Sample on single pin with VREFLO
-// Or 16 for 16-bit conversion resolution, which support (ADC_MODE_DIFFERENTIAL)
-// Sample on pair of pins
 //
-// Globals
-//
+#pragma DATA_SECTION(adcAResults_1,"ADCBUFFER1")
+#pragma DATA_SECTION(adcAResults_2,"ADCBUFFER1")
+#pragma DATA_SECTION(adcAResults_3,"ADCBUFFER1")
+#pragma DATA_SECTION(adcAResults_4,"ADCBUFFER1")
+#pragma DATA_SECTION(adcAResults_5,"ADCBUFFER1")
+
+#pragma DATA_SECTION(adcAResults_6,"ADCBUFFER2")
+#pragma DATA_SECTION(adcAResults_7,"ADCBUFFER2")
+#pragma DATA_SECTION(adcAResults_8,"ADCBUFFER2")
+#pragma DATA_SECTION(adcAResults_9,"ADCBUFFER2")
+#pragma DATA_SECTION(adcAResults_10,"ADCBUFFER2")
+
+#pragma DATA_SECTION(adcAResults_11,"ADCBUFFER3")
+#pragma DATA_SECTION(adcAResults_12,"ADCBUFFER3")
+#pragma DATA_SECTION(adcAResults_13,"ADCBUFFER3")
+#pragma DATA_SECTION(adcAResults_14,"ADCBUFFER3")
+#pragma DATA_SECTION(adcAResults_15,"ADCBUFFER3")
+
+#pragma DATA_SECTION(adcAResults_16,"ADCBUFFER4")
+#pragma DATA_SECTION(adcAResults_17,"ADCBUFFER4")
+#pragma DATA_SECTION(adcAResults_18,"ADCBUFFER4")
+#pragma DATA_SECTION(adcAResults_19,"ADCBUFFER4")
+#pragma DATA_SECTION(adcAResults_20,"ADCBUFFER4")
+
+#define RAM_BANK_SIZE  0x00010000
+#define RAM_ADCBUFFER1 0x00018000
+#define RAM_ADCBUFFER2 0x00019000
+#define RAM_ADCBUFFER3 0x0001A000
+#define RAM_ADCBUFFER4 0x0001B000
+
+
 uint16_t adcAResults_1[RESULTS_BUFFER_SIZE];   // Buffer for results
 uint16_t adcAResults_2[RESULTS_BUFFER_SIZE];   // Buffer for results
+uint16_t adcAResults_3[RESULTS_BUFFER_SIZE];   // Buffer for results
+uint16_t adcAResults_4[RESULTS_BUFFER_SIZE];   // Buffer for results
+uint16_t adcAResults_5[RESULTS_BUFFER_SIZE];   // Buffer for results
+uint16_t adcAResults_6[RESULTS_BUFFER_SIZE];   // Buffer for results
+uint16_t adcAResults_7[RESULTS_BUFFER_SIZE];   // Buffer for results
 uint16_t adcAResults_3[RESULTS_BUFFER_SIZE];   // Buffer for results
 uint16_t adcAResults_4[RESULTS_BUFFER_SIZE];   // Buffer for results
 uint16_t adcAResults_5[RESULTS_BUFFER_SIZE];   // Buffer for results
@@ -154,6 +147,7 @@ uint16_t adcAResults_17[RESULTS_BUFFER_SIZE];   // Buffer for results
 uint16_t adcAResults_18[RESULTS_BUFFER_SIZE];   // Buffer for results
 uint16_t adcAResults_19[RESULTS_BUFFER_SIZE];   // Buffer for results
 uint16_t adcAResults_20[RESULTS_BUFFER_SIZE];   // Buffer for results
+
 uint16_t index;                              // Index into result buffer
 volatile uint16_t bufferFull;                // Flag to indicate buffer is full
 
@@ -247,31 +241,26 @@ void main(void)
     initADC();
     initEPWM();
     initADCSOC();
+    //RAM_ADCBUFFER1
+    HWREGH(RAM_ADCBUFFER1+0)=0;
+    int xx=0;
+    int yy=0;
+    for(xx=0;xx<5;xx+=RAM_BANK_SIZE){
+        for(yy=0;yy<5;yy+=RESULTS_BUFFER_SIZE){
+            for(index = 0; index < RESULTS_BUFFER_SIZE; index++){
+                HWREGH(RAM_ADCBUFFER1+yy+index) = 0;
+            }
+        }
+    }
+    /*
     for(index = 0; index < RESULTS_BUFFER_SIZE; index++)
     {
-        adcAResults_1[index] = 0;
-        adcAResults_2[index] = 0;
-        adcAResults_3[index] = 0;
-        adcAResults_4[index] = 0;
-        adcAResults_5[index] = 0;
-        adcAResults_6[index] = 0;
-        /*
-        adcAResults_7[index] = 0;
-        adcAResults_8[index] = 0;
-        adcAResults_9[index] = 0;
-        adcAResults_10[index] = 0;
-        adcAResults_11[index] = 0;
-        adcAResults_12[index] = 0;
-        adcAResults_13[index] = 0;
-        adcAResults_14[index] = 0;
-        adcAResults_15[index] = 0;
-        adcAResults_16[index] = 0;
-        adcAResults_17[index] = 0;
-        adcAResults_18[index] = 0;
-        adcAResults_19[index] = 0;
-        adcAResults_20[index] = 0;
-        */
+        adcAResults_1[index] = 0; adcAResults_2[index] = 0; adcAResults_3[index] = 0; adcAResults_4[index] = 0; adcAResults_5[index] = 0;
+        adcAResults_6[index] = 0; adcAResults_7[index] = 0; adcAResults_8[index] = 0; adcAResults_9[index] = 0; adcAResults_10[index] = 0;
+        adcAResults_11[index] = 0; adcAResults_12[index] = 0; adcAResults_13[index] = 0; adcAResults_14[index] = 0; adcAResults_15[index] = 0;
+        adcAResults_16[index] = 0; adcAResults_17[index] = 0; adcAResults_18[index] = 0; adcAResults_19[index] = 0; adcAResults_20[index] = 0;
     }
+    */
     index = 0;
     bufferFull = 0;
 
@@ -280,13 +269,13 @@ void main(void)
     EINT;
     ERTM;
 
+    EPWM_enableADCTrigger(EPWM1_BASE, EPWM_SOC_A);
     while(1)
     {
         //
         // Start ePWM1, enabling SOCA and putting the counter in up-count mode
         //
-        EPWM_enableADCTrigger(EPWM1_BASE, EPWM_SOC_A);
-        EPWM_setTimeBaseCounterMode(EPWM1_BASE, EPWM_COUNTER_MODE_UP);
+        //EPWM_setTimeBaseCounterMode(EPWM1_BASE, EPWM_COUNTER_MODE_UP);
 
         //
         // Wait while ePWM1 causes ADC conversions which then cause interrupts.
@@ -300,8 +289,8 @@ void main(void)
         //
         // Stop ePWM1, disabling SOCA and freezing the counter
         //
-        EPWM_disableADCTrigger(EPWM1_BASE, EPWM_SOC_A);
-        EPWM_setTimeBaseCounterMode(EPWM1_BASE, EPWM_COUNTER_MODE_STOP_FREEZE);
+        //EPWM_disableADCTrigger(EPWM1_BASE, EPWM_SOC_A);
+        //EPWM_setTimeBaseCounterMode(EPWM1_BASE, EPWM_COUNTER_MODE_STOP_FREEZE);
 
         //
         // Software breakpoint. At this point, conversion results are stored in
@@ -318,16 +307,15 @@ void main(void)
 //
 void initADC(void)
 {
-    ADC_setPrescaler(ADCA_BASE, ADC_CLK_DIV_4_0); // Set ADCCLK divider to /4
-    ADC_setMode(ADCA_BASE, ADC_RESOLUTION_12BIT, ADC_MODE_SINGLE_ENDED); // // Set resolution and signal mode (see #defines above) and load // corresponding trims.
-    ADC_setInterruptPulseMode(ADCA_BASE, ADC_PULSE_END_OF_CONV); // Set pulse positions to late
-    ADC_setInterruptPulseMode(ADCB_BASE, ADC_PULSE_END_OF_CONV); // Set pulse positions to late
-    ADC_setInterruptPulseMode(ADCC_BASE, ADC_PULSE_END_OF_CONV); // Set pulse positions to late
-    ADC_setInterruptPulseMode(ADCD_BASE, ADC_PULSE_END_OF_CONV); // Set pulse positions to late
-    ADC_enableConverter(ADCA_BASE); // Power up the ADC and then delay for 1 ms
-    ADC_enableConverter(ADCB_BASE); // Power up the ADC and then delay for 1 ms
-    ADC_enableConverter(ADCC_BASE); // Power up the ADC and then delay for 1 ms
-    ADC_enableConverter(ADCD_BASE); // Power up the ADC and then delay for 1 ms
+    int xx;
+    for(xx=0;xx<4*0x80;xx++){
+        ADC_setPrescaler(ADCA_BASE+xx*0x80, ADC_CLK_DIV_4_0); // Set ADCCLK divider to /4
+        ADC_setMode(ADCA_BASE+xx*0x80, ADC_RESOLUTION_12BIT, ADC_MODE_SINGLE_ENDED); // // Set resolution and signal mode (see #defines above) and load // corresponding trims.
+        ADC_setInterruptPulseMode(ADCA_BASE+xx*0x80, ADC_PULSE_END_OF_CONV); // Set pulse positions to late
+        ADC_enableConverter(ADCA_BASE+xx*0x80); // Power up the ADC and then delay for 1 ms
+    };
+    ADC_setBurstModeConfig(ADCA_BASE,ADC_TRIGGER_EPWM1_SOCA , 16);
+
     DEVICE_DELAY_US(1000);
 }
 
@@ -336,14 +324,24 @@ void initADC(void)
 //
 void initEPWM(void)
 {
-    EPWM_disableADCTrigger(EPWM1_BASE, EPWM_SOC_A); // Disable SOCA
-    EPWM_setADCTriggerSource(EPWM1_BASE, EPWM_SOC_A, EPWM_SOC_TBCTR_U_CMPA); // Configure the SOC to occur on the first up-count event
-    EPWM_setADCTriggerEventPrescale(EPWM1_BASE, EPWM_SOC_A, 1);
-    EPWM_setCounterCompareValue(EPWM1_BASE, EPWM_COUNTER_COMPARE_A, 0x0800); // Set the compare A value to 2048 and the period to 4096
-    EPWM_setTimeBasePeriod(EPWM1_BASE, 0x1000);
+    //
     EPWM_setTimeBaseCounterMode(EPWM1_BASE, EPWM_COUNTER_MODE_STOP_FREEZE); // Freeze the counter
+    EPWM_setClockPrescaler(EPWM1_BASE, EPWM_CLOCK_DIVIDER_1 ,EPWM_HSCLOCK_DIVIDER_1 );
+    EPWM_setTimeBasePeriod(EPWM1_BASE, 0x30d4);//At 8Khz
+    EPWM_disableADCTrigger(EPWM1_BASE, EPWM_SOC_A); // Disable SOCA
+    EPWM_setADCTriggerSource(EPWM1_BASE,EPWM_SOC_A,EPWM_SOC_TBCTR_PERIOD);
+    EPWM_setInterruptEventCount(EPWM1_BASE, 1);
+
+    //
+    //EPWM_setTimeBaseCounterMode(EPWM1_BASE, EPWM_COUNTER_MODE_STOP_FREEZE); // Freeze the counter
+    //EPWM_disableADCTrigger(EPWM1_BASE, EPWM_SOC_A); // Disable SOCA
+    //EPWM_setADCTriggerSource(EPWM1_BASE, EPWM_SOC_A, EPWM_SOC_TBCTR_U_CMPA); // Configure the SOC to occur on the first up-count event
+    //EPWM_setADCTriggerEventPrescale(EPWM1_BASE, EPWM_SOC_A, 1);
+    //EPWM_setCounterCompareValue(EPWM1_BASE, EPWM_COUNTER_COMPARE_A, 0x0800); // Set the compare A value to 2048 and the period to 4096
+    //EPWM_setTimeBasePeriod(EPWM1_BASE, 0x1000);
 }
 
+    //EPWM_setTimeBaseCounterMode(EPWM1_BASE, EPWM_COUNTER_MODE_UP );
 //
 // Function to configure ADCA's SOC0 to be triggered by ePWM1.
 //
@@ -359,31 +357,31 @@ void initADCSOC(void)
     //
     //ADCA_BASE
        ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER0, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN0, 15);//VIN_R
-       ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER1, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN1, 15);//VSTS_R
-       ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER2, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN2, 15);//VO_R
-       ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER3, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN3, 15);//IIN_R
-       ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER4, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN4, 15);//IINV_R
-       ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER5, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN5, 15);//IO_R
-       ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER14, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN14, 15);//THR1
-       ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER15, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN15, 15);//THR2
+       //ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER1, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN1, 15);//VSTS_R
+       //ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER2, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN2, 15);//VO_R
+       //ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER3, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN3, 15);//IIN_R
+       //ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER4, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN4, 15);//IINV_R
+       //ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER5, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN5, 15);//IO_R
+       //ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER14, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN14, 15);//THR1
+       //ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER15, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN15, 15);//THR2
 
     //ADCB_BASE
        ADC_setupSOC(ADCB_BASE, ADC_SOC_NUMBER0, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN0, 15);//VIN_S
-       ADC_setupSOC(ADCB_BASE, ADC_SOC_NUMBER1, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN1, 15);//VSTS_S1
-       ADC_setupSOC(ADCB_BASE, ADC_SOC_NUMBER2, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN2, 15);//VO_S
-       ADC_setupSOC(ADCB_BASE, ADC_SOC_NUMBER3, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN3, 15);//IIN_S
+       //ADC_setupSOC(ADCB_BASE, ADC_SOC_NUMBER1, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN1, 15);//VSTS_S1
+       //ADC_setupSOC(ADCB_BASE, ADC_SOC_NUMBER2, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN2, 15);//VO_S
+       //ADC_setupSOC(ADCB_BASE, ADC_SOC_NUMBER3, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN3, 15);//IIN_S
 
     //ADCC_BASE
        ADC_setupSOC(ADCC_BASE, ADC_SOC_NUMBER2, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN2, 15);//VO_T
-       ADC_setupSOC(ADCC_BASE, ADC_SOC_NUMBER3, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN3, 15);//IO_S
-       ADC_setupSOC(ADCC_BASE, ADC_SOC_NUMBER4, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN4, 15);//IINV_R
+       //ADC_setupSOC(ADCC_BASE, ADC_SOC_NUMBER3, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN3, 15);//IO_S
+       //ADC_setupSOC(ADCC_BASE, ADC_SOC_NUMBER4, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN4, 15);//IINV_R
 
     //ADCD_BASE
        ADC_setupSOC(ADCD_BASE, ADC_SOC_NUMBER0, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN0, 15);//VBAT
-       ADC_setupSOC(ADCD_BASE, ADC_SOC_NUMBER1, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN1, 15);//VSTS_S
-       ADC_setupSOC(ADCD_BASE, ADC_SOC_NUMBER2, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN2, 15);//IBAT
-       ADC_setupSOC(ADCD_BASE, ADC_SOC_NUMBER3, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN3, 15);//IO_T
-       ADC_setupSOC(ADCD_BASE, ADC_SOC_NUMBER4, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN4, 15);//THR2
+       //ADC_setupSOC(ADCD_BASE, ADC_SOC_NUMBER1, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN1, 15);//VSTS_S
+       //ADC_setupSOC(ADCD_BASE, ADC_SOC_NUMBER2, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN2, 15);//IBAT
+       //ADC_setupSOC(ADCD_BASE, ADC_SOC_NUMBER3, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN3, 15);//IO_T
+       //ADC_setupSOC(ADCD_BASE, ADC_SOC_NUMBER4, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN4, 15);//THR2
     //
     // Set SOC0 to set the interrupt 1 flag. Enable the interrupt and make
     // sure its flag is cleared.
@@ -401,6 +399,7 @@ __interrupt void adcA1ISR(void)
     // Add the latest result to the buffer
     //
     adcAResults_1[index++] = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER0);
+    // Trigger to soc 1
 
     //
     // Set the bufferFull flag if the buffer is full
