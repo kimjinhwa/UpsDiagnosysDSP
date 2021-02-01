@@ -64,8 +64,10 @@
 #define CPU_FRQ_200MHZ          1
 #define ADC_SAMPLING_FREQ       100000.0L
 #define EPWM_HSPCLKDIV          1           //EPWM_CLOCK is SYSCLK/(2*2)
-#define EPWM1_PERIOD            500
-#define EPWM1_DUTY_CYCLE        250
+//#define EPWM1_PERIOD            500
+//#define EPWM1_DUTY_CYCLE        250
+#define EPWM1_PERIOD            50000
+#define EPWM1_DUTY_CYCLE        25000
 #define EPWM2_PERIOD            50000
 #define EPWM2_DUTY_CYCLE        25000
 #define RESULTS_BUFFER_SIZE     800
@@ -231,21 +233,35 @@ void fft_routine()
     freq =(float)F_PER_SAMPLE * (float)j;
     freq = freq;
 }
-void main(void)
+
+#define BLINKY_LED_GPIO 31
+#define PULSE_OUTPUT_GPIO 18
+uint16_t ToggleCount = 0;
+void initLocalGpio()
 {
-    Device_init();
-    Device_initGPIO();
-    Interrupt_initModule();
-    Interrupt_initVectorTable();
-    Interrupt_register(INT_ADCA1, &adcA1ISR);
+    GPIO_setDirectionMode(BLINKY_LED_GPIO , GPIO_DIR_MODE_OUT);
+    GPIO_setPadConfig(BLINKY_LED_GPIO , GPIO_PIN_TYPE_STD);
+    GPIO_setMasterCore(BLINKY_LED_GPIO , GPIO_CORE_CPU1);
+    GPIO_setQualificationMode(BLINKY_LED_GPIO , GPIO_QUAL_SYNC);
 
-    fft_routine();
+    GPIO_setDirectionMode(PULSE_OUTPUT_GPIO , GPIO_DIR_MODE_OUT);
+    GPIO_setPadConfig(PULSE_OUTPUT_GPIO , GPIO_PIN_TYPE_STD);
+    GPIO_setMasterCore(PULSE_OUTPUT_GPIO , GPIO_CORE_CPU1);
+    GPIO_setQualificationMode(PULSE_OUTPUT_GPIO , GPIO_QUAL_SYNC);
+}
 
-    initADC();
-    initEPWM();
-    initADCSOC();
+inline void initBuffer()
+{
+
+    for(index = 0; index < RESULTS_BUFFER_SIZE; index++)
+    {
+        adcAResults_1[index] = 0; adcAResults_2[index] = 0; adcAResults_3[index] = 0; adcAResults_4[index] = 0; adcAResults_5[index] = 0;
+        adcAResults_6[index] = 0; adcAResults_7[index] = 0; adcAResults_8[index] = 0; adcAResults_9[index] = 0; adcAResults_10[index] = 0;
+        adcAResults_11[index] = 0; adcAResults_12[index] = 0; adcAResults_13[index] = 0; adcAResults_14[index] = 0; adcAResults_15[index] = 0;
+        adcAResults_16[index] = 0; adcAResults_17[index] = 0; adcAResults_18[index] = 0; adcAResults_19[index] = 0; adcAResults_20[index] = 0;
+    }
     //RAM_ADCBUFFER1
-    HWREGH(RAM_ADCBUFFER1+0)=0;
+    //HWREGH(RAM_ADCBUFFER1+0)=0;
     /*
     uint32_t xx=0;
     uint32_t yy=0;
@@ -259,23 +275,32 @@ void main(void)
         HWREGH(RAM_ADCBUFFER1+xx+yy+index) = 1;
     }
     */
+}
+void main(void)
+{
+    Device_init();
+    Device_initGPIO();
+    initLocalGpio();
+    Interrupt_initModule();
+    Interrupt_initVectorTable();
+    Interrupt_register(INT_ADCA1, &adcA1ISR);
 
-    for(index = 0; index < RESULTS_BUFFER_SIZE; index++)
-    {
-        adcAResults_1[index] = 0; adcAResults_2[index] = 0; adcAResults_3[index] = 0; adcAResults_4[index] = 0; adcAResults_5[index] = 0;
-        adcAResults_6[index] = 0; adcAResults_7[index] = 0; adcAResults_8[index] = 0; adcAResults_9[index] = 0; adcAResults_10[index] = 0;
-        adcAResults_11[index] = 0; adcAResults_12[index] = 0; adcAResults_13[index] = 0; adcAResults_14[index] = 0; adcAResults_15[index] = 0;
-        adcAResults_16[index] = 0; adcAResults_17[index] = 0; adcAResults_18[index] = 0; adcAResults_19[index] = 0; adcAResults_20[index] = 0;
-    }
+    initBuffer();
+    fft_routine();//fft routine test
+
+    initADC();
+    initEPWM();
+    initADCSOC();
     index = 0;
     bufferFull = 0;
 
     Interrupt_enable(INT_ADCA1);
 
-    EINT;
-    ERTM;
+    EINT;//enable inturrupt
+    ERTM;//enable debug enable
 
-    EPWM_enableADCTrigger(EPWM1_BASE, EPWM_SOC_A);
+        EPWM_enableADCTrigger(EPWM1_BASE, EPWM_SOC_A);
+        EPWM_setTimeBaseCounterMode(EPWM1_BASE, EPWM_COUNTER_MODE_UP);
     while(1)
     {
         //
@@ -289,6 +314,8 @@ void main(void)
         //
         while(bufferFull == 0)
         {
+            GPIO_togglePin(BLINKY_LED_GPIO );
+            DEVICE_DELAY_US(100000);
         }
         bufferFull = 0;     // Clear the buffer full flag
 
@@ -304,7 +331,7 @@ void main(void)
         //
         // Hit run again to get updated conversions.
         //
-        ESTOP0;
+        //ESTOP0; //emulation halt
     }
 }
 
@@ -313,6 +340,11 @@ void main(void)
 //
 void initADC(void)
 {
+    ADC_setPrescaler(ADCA_BASE, ADC_CLK_DIV_4_0); // Set ADCCLK divider to /4
+    ADC_setMode(ADCA_BASE, ADC_RESOLUTION_12BIT, ADC_MODE_SINGLE_ENDED); // // Set resolution and signal mode (see #defines above) and load // corresponding trims.
+    ADC_setInterruptPulseMode(ADCA_BASE, ADC_PULSE_END_OF_CONV); // Set pulse positions to late
+    ADC_enableConverter(ADCA_BASE); // Power up the ADC and then delay for 1 ms
+    /*
     int xx;
     for(xx=0;xx<4*0x80;xx+=0x80){
         ADC_setPrescaler(ADCA_BASE+xx, ADC_CLK_DIV_4_0); // Set ADCCLK divider to /4
@@ -322,7 +354,7 @@ void initADC(void)
     };
     ADC_setBurstModeConfig(ADCA_BASE,ADC_TRIGGER_EPWM1_SOCA , 16);
     ADC_enableBurstMode(ADCA_BASE);
-
+     */
     DEVICE_DELAY_US(1000);
 }
 
@@ -331,13 +363,17 @@ void initADC(void)
 //
 void initEPWM(void)
 {
-    //
-    EPWM_setTimeBaseCounterMode(EPWM1_BASE, EPWM_COUNTER_MODE_STOP_FREEZE); // Freeze the counter
-    EPWM_setClockPrescaler(EPWM1_BASE, EPWM_CLOCK_DIVIDER_1 ,EPWM_HSCLOCK_DIVIDER_1 );
-    EPWM_setTimeBasePeriod(EPWM1_BASE, 0x30d4);//At 8Khz
     EPWM_disableADCTrigger(EPWM1_BASE, EPWM_SOC_A); // Disable SOCA
     EPWM_setADCTriggerSource(EPWM1_BASE,EPWM_SOC_A,EPWM_SOC_TBCTR_PERIOD);
-    EPWM_setInterruptEventCount(EPWM1_BASE, 1);
+    EPWM_setADCTriggerEventPrescale(EPWM1_BASE, EPWM_SOC_A, 1);
+    EPWM_setCounterCompareValue(EPWM1_BASE, EPWM_COUNTER_COMPARE_A, 0x0800);
+    EPWM_setTimeBasePeriod(EPWM1_BASE, 0x1000);
+    EPWM_setTimeBaseCounterMode(EPWM1_BASE, EPWM_COUNTER_MODE_STOP_FREEZE);
+    //
+    //EPWM_setTimeBaseCounterMode(EPWM1_BASE, EPWM_COUNTER_MODE_STOP_FREEZE); // Freeze the counter
+    //EPWM_setClockPrescaler(EPWM1_BASE, EPWM_CLOCK_DIVIDER_1 ,EPWM_HSCLOCK_DIVIDER_1 );
+    //EPWM_setTimeBasePeriod(EPWM1_BASE, 0x30d4);//At 8Khz
+    //EPWM_setInterruptEventCount(EPWM1_BASE, 1);
 
     //
     //EPWM_setTimeBaseCounterMode(EPWM1_BASE, EPWM_COUNTER_MODE_STOP_FREEZE); // Freeze the counter
@@ -373,18 +409,18 @@ void initADCSOC(void)
        //ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER15, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN15, 15);//THR2
 
     //ADCB_BASE
-       ADC_setupSOC(ADCB_BASE, ADC_SOC_NUMBER0, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN0, 15);//VIN_S
+       //ADC_setupSOC(ADCB_BASE, ADC_SOC_NUMBER0, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN0, 15);//VIN_S
        //ADC_setupSOC(ADCB_BASE, ADC_SOC_NUMBER1, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN1, 15);//VSTS_S1
        //ADC_setupSOC(ADCB_BASE, ADC_SOC_NUMBER2, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN2, 15);//VO_S
        //ADC_setupSOC(ADCB_BASE, ADC_SOC_NUMBER3, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN3, 15);//IIN_S
 
     //ADCC_BASE
-       ADC_setupSOC(ADCC_BASE, ADC_SOC_NUMBER2, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN2, 15);//VO_T
+       //ADC_setupSOC(ADCC_BASE, ADC_SOC_NUMBER2, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN2, 15);//VO_T
        //ADC_setupSOC(ADCC_BASE, ADC_SOC_NUMBER3, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN3, 15);//IO_S
        //ADC_setupSOC(ADCC_BASE, ADC_SOC_NUMBER4, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN4, 15);//IINV_R
 
     //ADCD_BASE
-       ADC_setupSOC(ADCD_BASE, ADC_SOC_NUMBER0, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN0, 15);//VBAT
+       //ADC_setupSOC(ADCD_BASE, ADC_SOC_NUMBER0, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN0, 15);//VBAT
        //ADC_setupSOC(ADCD_BASE, ADC_SOC_NUMBER1, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN1, 15);//VSTS_S
        //ADC_setupSOC(ADCD_BASE, ADC_SOC_NUMBER2, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN2, 15);//IBAT
        //ADC_setupSOC(ADCD_BASE, ADC_SOC_NUMBER3, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN3, 15);//IO_T
@@ -415,6 +451,11 @@ __interrupt void adcA1ISR(void)
     {
         index = 0;
         bufferFull = 1;
+    }
+    if (ToggleCount++ >= 15)
+    {
+            GPIO_togglePin(PULSE_OUTPUT_GPIO );
+            ToggleCount = 0;
     }
 
     //
