@@ -77,6 +77,7 @@
 
 #pragma DATA_SECTION(RFFTin1Buff,"RFFTdata1")
 uint16_t RFFTin1Buff[2*RFFT_SIZE];
+extern uint16_t RFFTin1Buff_test[2*RFFT_SIZE];
 
 #pragma DATA_SECTION(RFFTmagBuff,"RFFTdata2")
 float RFFTmagBuff[RFFT_SIZE/2+1];
@@ -129,11 +130,6 @@ uint16_t adcAResults_4[RESULTS_BUFFER_SIZE];   // Buffer for results
 uint16_t adcAResults_5[RESULTS_BUFFER_SIZE];   // Buffer for results
 uint16_t adcAResults_6[RESULTS_BUFFER_SIZE];   // Buffer for results
 uint16_t adcAResults_7[RESULTS_BUFFER_SIZE];   // Buffer for results
-uint16_t adcAResults_3[RESULTS_BUFFER_SIZE];   // Buffer for results
-uint16_t adcAResults_4[RESULTS_BUFFER_SIZE];   // Buffer for results
-uint16_t adcAResults_5[RESULTS_BUFFER_SIZE];   // Buffer for results
-uint16_t adcAResults_6[RESULTS_BUFFER_SIZE];   // Buffer for results
-uint16_t adcAResults_7[RESULTS_BUFFER_SIZE];   // Buffer for results
 uint16_t adcAResults_8[RESULTS_BUFFER_SIZE];   // Buffer for results
 uint16_t adcAResults_9[RESULTS_BUFFER_SIZE];   // Buffer for results
 uint16_t adcAResults_10[RESULTS_BUFFER_SIZE];   // Buffer for results
@@ -176,6 +172,12 @@ uint16_t fail = 0;
 #define EPSILON         0.1
 void fft_routine()
 {
+
+    for(index = 0; index < 2*RFFT_SIZE; index++)
+    {
+        RFFTin1Buff[index] = RFFTin1Buff_test[index];
+    }
+
     uint16_t i, j;
     float freq = 0.0;
     hnd_rfft_adc->Tail = &(hnd_rfft->OutBuf);
@@ -226,33 +228,38 @@ void fft_routine()
             freq = RFFTmagBuff[i];
         }
     }
-    freq = F_PER_SAMPLE * (float)j;
-    for(;;);
+    freq =(float)F_PER_SAMPLE * (float)j;
+    freq = freq;
 }
 void main(void)
 {
-    fft_routine();
     Device_init();
     Device_initGPIO();
     Interrupt_initModule();
     Interrupt_initVectorTable();
     Interrupt_register(INT_ADCA1, &adcA1ISR);
 
+    fft_routine();
+
     initADC();
     initEPWM();
     initADCSOC();
     //RAM_ADCBUFFER1
     HWREGH(RAM_ADCBUFFER1+0)=0;
-    int xx=0;
-    int yy=0;
-    for(xx=0;xx<5;xx+=RAM_BANK_SIZE){
-        for(yy=0;yy<5;yy+=RESULTS_BUFFER_SIZE){
-            for(index = 0; index < RESULTS_BUFFER_SIZE; index++){
-                HWREGH(RAM_ADCBUFFER1+yy+index) = 0;
-            }
-        }
-    }
     /*
+    uint32_t xx=0;
+    uint32_t yy=0;
+    for(xx=0;xx<5*RAM_BANK_SIZE;xx+=RAM_BANK_SIZE){
+        for(yy=0;yy<5*RESULTS_BUFFER_SIZE;yy+=RESULTS_BUFFER_SIZE){
+            for(index = 0; index < RESULTS_BUFFER_SIZE; index++){
+                HWREGH(RAM_ADCBUFFER1+xx+yy+index) = 1;
+            }
+            HWREGH(RAM_ADCBUFFER1+xx+yy+index) = 1;
+        }
+        HWREGH(RAM_ADCBUFFER1+xx+yy+index) = 1;
+    }
+    */
+
     for(index = 0; index < RESULTS_BUFFER_SIZE; index++)
     {
         adcAResults_1[index] = 0; adcAResults_2[index] = 0; adcAResults_3[index] = 0; adcAResults_4[index] = 0; adcAResults_5[index] = 0;
@@ -260,7 +267,6 @@ void main(void)
         adcAResults_11[index] = 0; adcAResults_12[index] = 0; adcAResults_13[index] = 0; adcAResults_14[index] = 0; adcAResults_15[index] = 0;
         adcAResults_16[index] = 0; adcAResults_17[index] = 0; adcAResults_18[index] = 0; adcAResults_19[index] = 0; adcAResults_20[index] = 0;
     }
-    */
     index = 0;
     bufferFull = 0;
 
@@ -308,13 +314,14 @@ void main(void)
 void initADC(void)
 {
     int xx;
-    for(xx=0;xx<4*0x80;xx++){
-        ADC_setPrescaler(ADCA_BASE+xx*0x80, ADC_CLK_DIV_4_0); // Set ADCCLK divider to /4
-        ADC_setMode(ADCA_BASE+xx*0x80, ADC_RESOLUTION_12BIT, ADC_MODE_SINGLE_ENDED); // // Set resolution and signal mode (see #defines above) and load // corresponding trims.
-        ADC_setInterruptPulseMode(ADCA_BASE+xx*0x80, ADC_PULSE_END_OF_CONV); // Set pulse positions to late
-        ADC_enableConverter(ADCA_BASE+xx*0x80); // Power up the ADC and then delay for 1 ms
+    for(xx=0;xx<4*0x80;xx+=0x80){
+        ADC_setPrescaler(ADCA_BASE+xx, ADC_CLK_DIV_4_0); // Set ADCCLK divider to /4
+        ADC_setMode(ADCA_BASE+xx, ADC_RESOLUTION_12BIT, ADC_MODE_SINGLE_ENDED); // // Set resolution and signal mode (see #defines above) and load // corresponding trims.
+        ADC_setInterruptPulseMode(ADCA_BASE+xx, ADC_PULSE_END_OF_CONV); // Set pulse positions to late
+        ADC_enableConverter(ADCA_BASE+xx); // Power up the ADC and then delay for 1 ms
     };
     ADC_setBurstModeConfig(ADCA_BASE,ADC_TRIGGER_EPWM1_SOCA , 16);
+    ADC_enableBurstMode(ADCA_BASE);
 
     DEVICE_DELAY_US(1000);
 }
