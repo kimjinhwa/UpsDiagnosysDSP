@@ -352,8 +352,6 @@ void initADC(void)
         ADC_setInterruptPulseMode(ADCA_BASE+xx, ADC_PULSE_END_OF_CONV); // Set pulse positions to late
         ADC_enableConverter(ADCA_BASE+xx); // Power up the ADC and then delay for 1 ms
     };
-    ADC_setBurstModeConfig(ADCA_BASE,ADC_TRIGGER_EPWM1_SOCA , 16);
-    ADC_enableBurstMode(ADCA_BASE);
      */
     DEVICE_DELAY_US(1000);
 }
@@ -390,6 +388,7 @@ void initEPWM(void)
 //
 void initADCSOC(void)
 {
+
     //
     // Configure SOC0 of ADCA to convert pin A0. The EPWM1SOCA signal will be
     // the trigger.
@@ -400,7 +399,7 @@ void initADCSOC(void)
     //
     //ADCA_BASE
        ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER0, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN0, 15);//VIN_R
-       //ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER1, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN1, 15);//VSTS_R
+       ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER1, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN1, 15);//VSTS_R
        //ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER2, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN2, 15);//VO_R
        //ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER3, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN3, 15);//IIN_R
        //ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER4, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN4, 15);//IINV_R
@@ -428,9 +427,15 @@ void initADCSOC(void)
     //
     // Set SOC0 to set the interrupt 1 flag. Enable the interrupt and make
     // sure its flag is cleared.
-    ADC_setInterruptSource(ADCA_BASE, ADC_INT_NUMBER1, ADC_SOC_NUMBER0);//
+
+
+    ADC_setBurstModeConfig(ADCA_BASE,ADC_TRIGGER_EPWM1_SOCA , 2);
+    ADC_enableBurstMode(ADCA_BASE);
+
+    ADC_setInterruptSource(ADCA_BASE, ADC_INT_NUMBER1, ADC_SOC_NUMBER1);//
     ADC_enableInterrupt(ADCA_BASE, ADC_INT_NUMBER1);
     ADC_clearInterruptStatus(ADCA_BASE, ADC_INT_NUMBER1);
+
 }
 
 //
@@ -441,7 +446,10 @@ __interrupt void adcA1ISR(void)
     //
     // Add the latest result to the buffer
     //
-    adcAResults_1[index++] = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER0);
+    adcAResults_1[index] = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER0);
+
+    adcAResults_2[index] = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER1);
+    index++;
     // Trigger to soc 1
 
     //
@@ -454,8 +462,8 @@ __interrupt void adcA1ISR(void)
     }
     if (ToggleCount++ >= 15)
     {
-            GPIO_togglePin(PULSE_OUTPUT_GPIO );
-            ToggleCount = 0;
+        GPIO_togglePin(PULSE_OUTPUT_GPIO );
+        ToggleCount = 0;
     }
 
     //
