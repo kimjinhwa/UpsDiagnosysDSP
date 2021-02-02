@@ -50,6 +50,7 @@
 									<listOptionValue builtIn="false" value="${C2000WARE_DLIB_ROOT}"/>
 									<listOptionValue builtIn="false" value="${CG_TOOL_ROOT}/include"/>
 									<listOptionValue builtIn="false" value="${INSTALLROOT_TO_FPU}/fpu32"/>
+									<listOptionValue builtIn="false" value="C:\ti\C2000Ware_3_03_00_00_Software\device_support\f2837xd\headers\include"/>
 								</option>
 								<option id="com.ti.ccstudio.buildDefinitions.C2000_20.2.compilerID.ABI.1606289195" name="Application binary interface [See 'General' page to edit] (--abi)" superClass="com.ti.ccstudio.buildDefinitions.C2000_20.2.compilerID.ABI" useByScannerDiscovery="false" value="com.ti.ccstudio.buildDefinitions.C2000_20.2.compilerID.ABI.eabi" valueType="enumerated"/>
 								<option id="com.ti.ccstudio.buildDefinitions.C2000_20.2.compilerID.OPT_LEVEL.214192751" name="Optimization level (--opt_level, -O)" superClass="com.ti.ccstudio.buildDefinitions.C2000_20.2.compilerID.OPT_LEVEL" useByScannerDiscovery="false" value="com.ti.ccstudio.buildDefinitions.C2000_20.2.compilerID.OPT_LEVEL.off" valueType="enumerated"/>

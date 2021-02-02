@@ -26,6 +26,16 @@
 	</natures>
 	<linkedResources>
 		<link>
+			<name>F2837xD_GlobalVariableDefs.c</name>
+			<type>1</type>
+			<locationURI>INSTALLROOT_2837X/headers/source/F2837xD_GlobalVariableDefs.c</locationURI>
+		</link>
+		<link>
+			<name>F2837xD_Headers_nonBIOS_cpu1.cmd</name>
+			<type>1</type>
+			<locationURI>INSTALLROOT_2837X/headers/cmd/F2837xD_Headers_nonBIOS_cpu1.cmd</locationURI>
+		</link>
+		<link>
 			<name>driverlib.lib</name>
 			<type>1</type>
 			<location>C:/ti/C2000Ware_3_03_00_00_Software/driverlib/f2837xd/driverlib/ccs/Debug/driverlib.lib</location>
