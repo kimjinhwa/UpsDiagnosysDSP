@@ -89,6 +89,7 @@ uint16_t adcAResults_19[RESULTS_BUFFER_SIZE];   // Buffer for results
 uint16_t adcAResults_20[RESULTS_BUFFER_SIZE];   // Buffer for results
 
 uint16_t index;                              // Index into result buffer
+uint16_t request_fft=0xff;
 volatile uint16_t bufferFull;                // Flag to indicate buffer is full
 
 //
@@ -246,9 +247,15 @@ void main(void)
     ERTM;//enable debug enable
     SysCtl_enablePeripheral(SYSCTL_PERIPH_CLK_TBCLKSYNC);
     EPWM_enableADCTrigger(EPWM1_BASE, EPWM_SOC_A);
+
+    //Test for fft...if request_fft is assigned then copy data to fft memory also.
+    request_fft=0;
     while(1)
     {
         if(bufferFull )bufferFull = 0;
+        if(request_fft==21) {
+           // FFT Memory Filled with valid data.
+        }
         GPIO_togglePin(BLINKY_LED_GPIO );
         DEVICE_DELAY_US(500000);
     }
@@ -279,12 +286,13 @@ void initADC(void)
 // Function to configure ePWM1 to generate the SOC.
 //
 EPWM_SignalParams pwmSignal =
-            {50000, 0.5f, 0.5f, true, DEVICE_SYSCLK_FREQ, SYSCTL_EPWMCLK_DIV_2,
+            {10000, 0.5f, 0.5f, true, DEVICE_SYSCLK_FREQ, SYSCTL_EPWMCLK_DIV_2,
             EPWM_COUNTER_MODE_UP_DOWN, EPWM_CLOCK_DIVIDER_1,
             EPWM_HSCLOCK_DIVIDER_1};
 
 void initEPWM(void)
 {
+    SysCtl_disablePeripheral(SYSCTL_PERIPH_CLK_TBCLKSYNC);
     EPWM_setADCTriggerSource(EPWM1_BASE,EPWM_SOC_A,EPWM_SOC_TBCTR_PERIOD);
     EPWM_setADCTriggerEventPrescale(EPWM1_BASE, EPWM_SOC_A, 1);
     EPWM_configureSignal(EPWM1_BASE, &pwmSignal);
@@ -399,16 +407,18 @@ __interrupt void adcA1ISR(void)
         adcAResults_20[index] = ADC_readResult(ADCDRESULT_BASE, ADC_SOC_NUMBER4);
     }
     else fail++;
+    // write data to fft array.
+    // if request_fft is set to 21 or above... This data do not write.
+    if(request_fft >=0. && request_fft <20. ){
+        RFFTin1Buff[index] =  HWREGH(RAM_ADCBUFFER1 + (int)(request_fft/5)*0x10000 + RESULTS_BUFFER_SIZE*(request_fft%5) +index) ;
+    }
     index++;
-    // Trigger to soc 1
-
-    //
     // Set the bufferFull flag if the buffer is full
-    //
     if(RESULTS_BUFFER_SIZE <= index)
     {
         index = 0;
         bufferFull = 1;
+        request_fft=21;// FFT data was Requested, And finished. It will be restart when receive valid request number again.
     }
     if (ToggleCount++ >= 15)
     {
@@ -433,8 +443,6 @@ __interrupt void adcA1ISR(void)
             ADC_clearInterruptStatus(ADCA_BASE+xx, ADC_INT_NUMBER1);
         }
     }
-
-    //
     // Acknowledge the interrupt
     // ADCA1 and  ADCB1 and  ADCC1 and  ADCD1 are GROUP1
     Interrupt_clearACKGroup(INTERRUPT_ACK_GROUP1);
