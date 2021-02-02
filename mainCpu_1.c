@@ -244,40 +244,13 @@ void main(void)
 
     EINT;//enable inturrupt
     ERTM;//enable debug enable
-
-        EPWM_enableADCTrigger(EPWM1_BASE, EPWM_SOC_A);
-        EPWM_setTimeBaseCounterMode(EPWM1_BASE, EPWM_COUNTER_MODE_UP);
+    SysCtl_enablePeripheral(SYSCTL_PERIPH_CLK_TBCLKSYNC);
+    EPWM_enableADCTrigger(EPWM1_BASE, EPWM_SOC_A);
     while(1)
     {
-        //
-        // Start ePWM1, enabling SOCA and putting the counter in up-count mode
-        //
-        //EPWM_setTimeBaseCounterMode(EPWM1_BASE, EPWM_COUNTER_MODE_UP);
-
-        //
-        // Wait while ePWM1 causes ADC conversions which then cause interrupts.
-        // When the results buffer is filled, the bufferFull flag will be set.
-        //
-        while(bufferFull == 0)
-        {
-            GPIO_togglePin(BLINKY_LED_GPIO );
-            DEVICE_DELAY_US(100000);
-        }
-        bufferFull = 0;     // Clear the buffer full flag
-
-        //
-        // Stop ePWM1, disabling SOCA and freezing the counter
-        //
-        //EPWM_disableADCTrigger(EPWM1_BASE, EPWM_SOC_A);
-        //EPWM_setTimeBaseCounterMode(EPWM1_BASE, EPWM_COUNTER_MODE_STOP_FREEZE);
-
-        //
-        // Software breakpoint. At this point, conversion results are stored in
-        // adcAResults_1.
-        //
-        // Hit run again to get updated conversions.
-        //
-        //ESTOP0; //emulation halt
+        if(bufferFull )bufferFull = 0;
+        GPIO_togglePin(BLINKY_LED_GPIO );
+        DEVICE_DELAY_US(500000);
     }
 }
 
@@ -305,20 +278,19 @@ void initADC(void)
 //
 // Function to configure ePWM1 to generate the SOC.
 //
+EPWM_SignalParams pwmSignal =
+            {50000, 0.5f, 0.5f, true, DEVICE_SYSCLK_FREQ, SYSCTL_EPWMCLK_DIV_2,
+            EPWM_COUNTER_MODE_UP_DOWN, EPWM_CLOCK_DIVIDER_1,
+            EPWM_HSCLOCK_DIVIDER_1};
+
 void initEPWM(void)
 {
-    EPWM_disableADCTrigger(EPWM1_BASE, EPWM_SOC_A); // Disable SOCA
     EPWM_setADCTriggerSource(EPWM1_BASE,EPWM_SOC_A,EPWM_SOC_TBCTR_PERIOD);
     EPWM_setADCTriggerEventPrescale(EPWM1_BASE, EPWM_SOC_A, 1);
-    //EPWM_setCountrCompareValue(EPWM1_BASE, EPWM_COUNTER_COMPARE_A, 0x0800);
-    EPWM_setTimeBasePeriod(EPWM1_BASE, 0x1000);//EPWM_setTimeBasePeriod(EPWM1_BASE, 0x30d4);//At 8Khz
-    EPWM_setTimeBaseCounterMode(EPWM1_BASE, EPWM_COUNTER_MODE_STOP_FREEZE);
+    EPWM_configureSignal(EPWM1_BASE, &pwmSignal);
 }
 
-    //EPWM_setTimeBaseCounterMode(EPWM1_BASE, EPWM_COUNTER_MODE_UP );
-//
 // Function to configure ADCA's SOC0 to be triggered by ePWM1.
-//
 void initADCSOC(void)
 {
     //AdcaRegs.ADCCTL2.bit.PRESCALE = 6;
@@ -538,3 +510,12 @@ __interrupt void adcA1ISR(void)
     //EPWM_setADCTriggerEventPrescale(EPWM1_BASE, EPWM_SOC_A, 1);
     //EPWM_setCounterCompareValue(EPWM1_BASE, EPWM_COUNTER_COMPARE_A, 0x0800); // Set the compare A value to 2048 and the period to 4096
     //EPWM_setTimeBasePeriod(EPWM1_BASE, 0x1000);
+
+    /*
+    EPWM_disableADCTrigger(EPWM1_BASE, EPWM_SOC_A); // Disable SOCA
+    EPWM_setADCTriggerSource(EPWM1_BASE,EPWM_SOC_A,EPWM_SOC_TBCTR_PERIOD);
+    EPWM_setADCTriggerEventPrescale(EPWM1_BASE, EPWM_SOC_A, 1);
+    //EPWM_setCountrCompareValue(EPWM1_BASE, EPWM_COUNTER_COMPARE_A, 0x0800);
+    EPWM_setTimeBasePeriod(EPWM1_BASE, 0x1000);//EPWM_setTimeBasePeriod(EPWM1_BASE, 0x30d4);//At 8Khz
+    EPWM_setTimeBaseCounterMode(EPWM1_BASE, EPWM_COUNTER_MODE_STOP_FREEZE);
+    */
