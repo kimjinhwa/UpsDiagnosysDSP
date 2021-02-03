@@ -58,6 +58,12 @@ float RFFTF32Coef[RFFT_SIZE];
 #define GPIO_0     0
 #define EPSILON         0.1
 
+#define DAC_TEST_USED   1
+
+#ifdef DAC_TEST_USED
+extern void setDacCI(void);
+#endif
+
 uint16_t adcAResults_1[RESULTS_BUFFER_SIZE];   // Buffer for results
 uint16_t adcAResults_2[RESULTS_BUFFER_SIZE];   // Buffer for results
 uint16_t adcAResults_3[RESULTS_BUFFER_SIZE];   // Buffer for results
@@ -218,8 +224,10 @@ void main(void)
                    // 105519*50nS = 5,275,950nS = 5.2us
     index=0;
 
+    setDacCI();
 
     initADC();
+
     initEPWM();
     initADCSOC();
     index = 0;
@@ -281,7 +289,9 @@ void initADCSOC(void)
     // For 12-bit resolution, a sampling window of 15 (75 ns at a 200MHz // SYSCLK rate) will be used.
     //ADCA_BASE
     // max number 8 for adca, 8 * 44 sysclk cycle  352 * 5us = 1.762uS
+#ifndef DAC_TEST_USED
        ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER0, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN0, 15);//VIN_R
+#endif
        ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER1, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN1, 15);//VSTS_R
        ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER2, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN2, 15);//VO_R
        ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER3, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN3, 15);//IIN_R
@@ -310,7 +320,11 @@ void initADCSOC(void)
     //
     // Set SOC0 to set the interrupt 1 flag. Enable the interrupt and make
     // sure its flag is cleared.
+#ifndef DAC_TEST_USED
     ADC_setBurstModeConfig(ADCA_BASE,ADC_TRIGGER_EPWM1_SOCA , 8);
+#else
+    ADC_setBurstModeConfig(ADCA_BASE,ADC_TRIGGER_EPWM1_SOCA , 7);
+#endif
     ADC_setSOCPriority(ADCA_BASE,ADC_PRI_ALL_HIPRI);
     ADC_enableBurstMode(ADCA_BASE);
 
@@ -349,10 +363,16 @@ void initADCSOC(void)
 //
 // ADC A Interrupt 1 ISR
 //
+extern Uint16 sineEnable ;
+extern Uint16 dacOffset;
+extern int QuadratureTable[40];
+Uint16 dacOutput;
 __interrupt void adcA1ISR(void)  // note_2
 {
     if( ADC_getInterruptStatus(ADCB_BASE,ADC_INT_NUMBER1)){
+#ifndef DAC_TEST_USED
         adcAResults_1[index] = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER0);
+#endif
         adcAResults_2[index] = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER1);
         adcAResults_3[index] = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER2);
         adcAResults_4[index] = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER3);
@@ -389,7 +409,7 @@ __interrupt void adcA1ISR(void)  // note_2
     {
         // write data to fft array.
         // if request_fft is set to 21 or above... This data do not write.
-        for(index=0;index<RESULTS_BUFFER_SIZE ;index++);
+        for(index=0;index<RESULTS_BUFFER_SIZE ;index++)
             RFFTin1Buff[index] =  HWREGH(RAM_ADCBUFFER1 + (int)(request_fft/5)*0x10000 + RESULTS_BUFFER_SIZE*(request_fft%5) +index) ;
         index = 0;
         bufferFull = 1;
@@ -402,6 +422,15 @@ __interrupt void adcA1ISR(void)  // note_2
         ToggleCount = 0;
     }
 
+    //if (sineEnable != 0)
+    //{
+        dacOutput = dacOffset + ((QuadratureTable[index % 0x20] ^ 0x8000) >> 5);
+    // }
+    //else
+    //{
+    //    dacOutput = dacOffset;
+    //}
+    DacaRegs.DACVALS.all = dacOutput;
     //
     // Clear the interrupt flag
     //

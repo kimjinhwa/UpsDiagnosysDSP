@@ -1,5 +1,9 @@
 ## DiagnosysUps Software Document
-
+### For Debug 
+	- make DAC for test
+	  This is for input test ADC, So It use inputA_0 pin. 
+	 - Later, It must be changed.
+	 - #define DAC_TEST_USED   = 1
 ### Note all 
     - It is tested using EVK KIT, 10Mhz , So it must be changed to 20Mhz 
     - Total read adc is 20.
