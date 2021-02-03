@@ -292,9 +292,9 @@ void initADCSOC(void)
 
     //ADCB_BASE
        ADC_setupSOC(ADCB_BASE, ADC_SOC_NUMBER0, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN0, 15);//VIN_S
-       ADC_setupSOC(ADCB_BASE, ADC_SOC_NUMBER1, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN1, 15);//VSTS_S1
-       ADC_setupSOC(ADCB_BASE, ADC_SOC_NUMBER2, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN2, 15);//VO_S
-       ADC_setupSOC(ADCB_BASE, ADC_SOC_NUMBER3, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN3, 15);//IIN_S
+       //ADC_setupSOC(ADCB_BASE, ADC_SOC_NUMBER1, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN1, 15);//VSTS_S1
+       ADC_setupSOC(ADCB_BASE, ADC_SOC_NUMBER1, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN2, 15);//VO_S
+       ADC_setupSOC(ADCB_BASE, ADC_SOC_NUMBER2, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN3, 15);//IIN_S
 
     //ADCC_BASE
        ADC_setupSOC(ADCC_BASE, ADC_SOC_NUMBER0, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN2, 15);//VO_T
@@ -314,7 +314,7 @@ void initADCSOC(void)
     ADC_setSOCPriority(ADCA_BASE,ADC_PRI_ALL_HIPRI);
     ADC_enableBurstMode(ADCA_BASE);
 
-    ADC_setBurstModeConfig(ADCB_BASE,ADC_TRIGGER_EPWM1_SOCA , 4);
+    ADC_setBurstModeConfig(ADCB_BASE,ADC_TRIGGER_EPWM1_SOCA , 3);
     ADC_setSOCPriority(ADCB_BASE,ADC_PRI_ALL_HIPRI);
     ADC_enableBurstMode(ADCB_BASE);
 
@@ -331,7 +331,7 @@ void initADCSOC(void)
     ADC_clearInterruptStatus(ADCA_BASE, ADC_INT_NUMBER1);
 
     //ADCB
-    ADC_setInterruptSource(ADCB_BASE, ADC_INT_NUMBER1, ADC_SOC_NUMBER3);//
+    ADC_setInterruptSource(ADCB_BASE, ADC_INT_NUMBER1, ADC_SOC_NUMBER2);//
     ADC_enableInterrupt(ADCB_BASE, ADC_INT_NUMBER1);
     ADC_clearInterruptStatus(ADCB_BASE, ADC_INT_NUMBER1);
 
@@ -364,23 +364,23 @@ __interrupt void adcA1ISR(void)  // note_2
     else fail++;
     if( ADC_getInterruptStatus(ADCB_BASE,ADC_INT_NUMBER1)){
         adcAResults_9[index] = ADC_readResult(ADCBRESULT_BASE, ADC_SOC_NUMBER0);
+        //adcAResults_10[index] = ADC_readResult(ADCBRESULT_BASE, ADC_SOC_NUMBER1);
         adcAResults_10[index] = ADC_readResult(ADCBRESULT_BASE, ADC_SOC_NUMBER1);
         adcAResults_11[index] = ADC_readResult(ADCBRESULT_BASE, ADC_SOC_NUMBER2);
-        adcAResults_12[index] = ADC_readResult(ADCBRESULT_BASE, ADC_SOC_NUMBER3);
     }
     else fail++;
     if( ADC_getInterruptStatus(ADCC_BASE,ADC_INT_NUMBER1)){
-        adcAResults_13[index] = ADC_readResult(ADCCRESULT_BASE, ADC_SOC_NUMBER0);
-        adcAResults_14[index] = ADC_readResult(ADCCRESULT_BASE, ADC_SOC_NUMBER1);
-        adcAResults_15[index] = ADC_readResult(ADCCRESULT_BASE, ADC_SOC_NUMBER3);
+        adcAResults_12[index] = ADC_readResult(ADCCRESULT_BASE, ADC_SOC_NUMBER0);
+        adcAResults_13[index] = ADC_readResult(ADCCRESULT_BASE, ADC_SOC_NUMBER1);
+        adcAResults_14[index] = ADC_readResult(ADCCRESULT_BASE, ADC_SOC_NUMBER3);
     }
     else fail++;
     if( ADC_getInterruptStatus(ADCD_BASE,ADC_INT_NUMBER1)){
-        adcAResults_16[index] = ADC_readResult(ADCDRESULT_BASE, ADC_SOC_NUMBER0);
-        adcAResults_17[index] = ADC_readResult(ADCDRESULT_BASE, ADC_SOC_NUMBER1);
-        adcAResults_18[index] = ADC_readResult(ADCDRESULT_BASE, ADC_SOC_NUMBER2);
-        adcAResults_19[index] = ADC_readResult(ADCDRESULT_BASE, ADC_SOC_NUMBER3);
-        adcAResults_20[index] = ADC_readResult(ADCDRESULT_BASE, ADC_SOC_NUMBER4);
+        adcAResults_15[index] = ADC_readResult(ADCDRESULT_BASE, ADC_SOC_NUMBER0);
+        adcAResults_16[index] = ADC_readResult(ADCDRESULT_BASE, ADC_SOC_NUMBER1);
+        adcAResults_17[index] = ADC_readResult(ADCDRESULT_BASE, ADC_SOC_NUMBER2);
+        adcAResults_18[index] = ADC_readResult(ADCDRESULT_BASE, ADC_SOC_NUMBER3);
+        adcAResults_19[index] = ADC_readResult(ADCDRESULT_BASE, ADC_SOC_NUMBER4);
     }
     else fail++;
     index++;
