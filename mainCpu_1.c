@@ -185,6 +185,7 @@ inline void initBuffer()
 __interrupt void cpuTimer0ISR(void)
 {
     cpuTimer0IntCount++;
+    GPIO_togglePin(BLINKY_LED_GPIO );
     Interrupt_clearACKGroup(INTERRUPT_ACK_GROUP1);
 }
 void init_timer0()
@@ -250,8 +251,8 @@ void main(void)
            //request_fft
             bufferFull = 0;
         }
-        GPIO_togglePin(BLINKY_LED_GPIO );
-        DEVICE_DELAY_US(500000);
+        //GPIO_togglePin(BLINKY_LED_GPIO );
+        //DEVICE_DELAY_US(500000);
     }
 }
 
@@ -275,10 +276,10 @@ void initEPWM(void)
 {
 EPWM_SignalParams pwmSignal =
             {ADC_SAMPLING_FREQ, 0.5f, 0.5f, true, DEVICE_SYSCLK_FREQ, SYSCTL_EPWMCLK_DIV_2,
-            EPWM_COUNTER_MODE_UP_DOWN, EPWM_CLOCK_DIVIDER_1,
+             EPWM_COUNTER_MODE_DOWN, EPWM_CLOCK_DIVIDER_1,
             EPWM_HSCLOCK_DIVIDER_1};
     SysCtl_disablePeripheral(SYSCTL_PERIPH_CLK_TBCLKSYNC);
-    EPWM_setADCTriggerSource(EPWM1_BASE,EPWM_SOC_A,EPWM_SOC_TBCTR_PERIOD);
+    EPWM_setADCTriggerSource(EPWM1_BASE,EPWM_SOC_A,EPWM_SOC_TBCTR_ZERO);
     EPWM_setADCTriggerEventPrescale(EPWM1_BASE, EPWM_SOC_A, 1);
     EPWM_configureSignal(EPWM1_BASE, &pwmSignal);
 }
@@ -369,6 +370,7 @@ void initADCSOC(void)
 //extern int QuadratureTable[40];
 __interrupt void adcA1ISR(void)  // note_2
 {
+    GPIO_togglePin(PULSE_OUTPUT_GPIO );
     if( ADC_getInterruptStatus(ADCB_BASE,ADC_INT_NUMBER1)){
 #ifndef DAC_TEST_USED
         adcAResults_1[index] = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER0);
@@ -418,7 +420,7 @@ __interrupt void adcA1ISR(void)  // note_2
     }
     if (ToggleCount++ >= 15)
     {
-        GPIO_togglePin(PULSE_OUTPUT_GPIO );
+        //GPIO_togglePin(PULSE_OUTPUT_GPIO );
         ToggleCount = 0;
     }
 
