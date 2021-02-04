@@ -223,6 +223,9 @@ void init_timer0()
     //elespedTime_b = elespedTime_b -elespedTime_e;
     //CPUTimer_reloadTimerCounter(CPUTIMER1_BASE);
     //elespedTime_b = CpuTimer0Regs.TIM.all;
+
+#include "uart/uart.h"
+//
 void main(void)
 {
     Device_init();
@@ -240,7 +243,7 @@ void main(void)
     Interrupt_register(INT_ADCA1, &adcA1ISR);
 
     setDacCI();
-
+    initSCICFIFO();
     initADC();
 
     initEPWM();
@@ -251,6 +254,8 @@ void main(void)
     Interrupt_enable(INT_ADCA1);
     Interrupt_enable(INT_TIMER1);
     Interrupt_enable(INT_EPWM2);
+    Interrupt_enable(INT_SCIC_RX);
+    //Interrupt_enable(INT_SCIC_TX);
 
     EINT;//enable inturrupt
     ERTM;//enable debug enable
@@ -258,13 +263,16 @@ void main(void)
     EPWM_enableADCTrigger(EPWM1_BASE, EPWM_SOC_A);
 
     //Test for fft...if request_fft is assigned then copy data to fft memory also.
+    //UARTprintf((uint16_t *)"dir");
+    SCI_writeCharArray(SCIC_BASE , (uint16_t *)"12345", 5);
     while(1)
     {
         if(bufferFull ){
-           // FFT Memory Filled with valid data.
-           //request_fft
+            // FFT Memory Filled with valid data.
+            //request_fft
             fft_routine(); // <note_1> 105519  sysclk is need. fft routine test
             bufferFull = 0;
+            //sendData();
         }
         //GPIO_togglePin(BLINKY_LED_GPIO );
         //DEVICE_DELAY_US(500000);
