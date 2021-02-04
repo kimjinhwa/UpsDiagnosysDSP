@@ -1,7 +1,7 @@
 #include "driverlib.h"
 #include "device.h"
 #include "F2837xD_device.h"
-
+#include "DiagnosysUps.h"
 
 //DAC_setReferenceVoltage(uint32_t base, DAC_ReferenceVoltage source)
 //DAC_setLoadMode(uint32_t base, DAC_LoadMode mode)
@@ -60,9 +60,61 @@ int QuadratureTable[40] = {
 };
 Uint16 sineEnable = 0;
 Uint16 dacOffset;
+uint16_t idx=0;                              // Index into result buffer
+Uint16 dacOutput;
+//EPWM_setInterruptSource(uint32_t base, uint16_t interruptSource) EPWM_INT_TBCTR_ZERO
+//EPWM_setInterruptEventCount(uint32_t base, uint16_t eventCount)
+//EPWM_clearEventTriggerInterruptFlag
+//EPWM_enableInterruptEventCountInit(uint32_t base)
+__interrupt void pwmE2ISR(void);
+__interrupt void pwmE2ISR(void)
+{
+    //if (sineEnable != 0)
+    //{
+    dacOutput = dacOffset + ((QuadratureTable[idx % 0x20] ^ 0x8000) >> 5);
+    // }
+    //else
+    //{
+    //    dacOutput = dacOffset;
+    //}
+    DacaRegs.DACVALS.all = dacOutput;
+    idx++;
+    EPWM_clearEventTriggerInterruptFlag(EPWM2_BASE);
+    Interrupt_clearACKGroup(INTERRUPT_ACK_GROUP3);
+}
+void setEpwm(){
 
+    Interrupt_register(INT_EPWM2, &pwmE2ISR);
+    //ADC_SAMPLING_FREQ
+    //1920 60Hz
+    EPWM_SignalParams pwmSignal =
+    {1920, 0.5f, 0.5f, true, DEVICE_SYSCLK_FREQ, SYSCTL_EPWMCLK_DIV_2,
+     EPWM_COUNTER_MODE_UP_DOWN, EPWM_CLOCK_DIVIDER_1,
+     EPWM_HSCLOCK_DIVIDER_1};
+
+    EPWM_configureSignal(EPWM2_BASE, &pwmSignal);
+    /*
+    EPWM_setTimeBasePeriod(EPWM2_BASE, 2000);
+    EPWM_setTimeBaseCounterMode(EPWM2_BASE, EPWM_COUNTER_MODE_UP_DOWN);
+    EPWM_setClockPrescaler(EPWM2_BASE,
+                               EPWM_CLOCK_DIVIDER_1,
+                               EPWM_HSCLOCK_DIVIDER_1);
+    EPWM_setTimeBaseCounter(EPWM2_BASE, 0U);
+    EPWM_setCounterCompareValue(EPWM2_BASE,
+                                    EPWM_COUNTER_COMPARE_A,
+                                    50 );
+    EPWM_setCounterCompareValue(EPWM2_BASE,
+                                    EPWM_COUNTER_COMPARE_B,
+                                    1950);
+    */
+    EPWM_setInterruptSource(EPWM2_BASE , EPWM_INT_TBCTR_ZERO );
+    EPWM_setInterruptEventCount(EPWM2_BASE, 1U);
+    EPWM_enableInterrupt(EPWM2_BASE);
+
+}
 void setDacCI(void)
 {
+    setEpwm();
     //DACA_BASE
     /*
     EALLOW;
@@ -71,7 +123,7 @@ void setDacCI(void)
     DacaRegs.DACVALS.all = 0x0800;              // Set mid-range
     DacaRegs.DACOUTEN.bit.DACOUTEN = 1;         // Enable DAC
     EDIS;
-    */
+     */
     DAC_setReferenceVoltage(DACA_BASE, DAC_REF_ADC_VREFHI);
     DAC_setLoadMode(DACA_BASE,DAC_LOAD_SYSCLK);
     DAC_setShadowValue(DACA_BASE,0x0800);

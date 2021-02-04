@@ -235,6 +235,7 @@ void main(void)
 
     Interrupt_enable(INT_ADCA1);
     Interrupt_enable(INT_TIMER0);
+    Interrupt_enable(INT_EPWM2);
 
     EINT;//enable inturrupt
     ERTM;//enable debug enable
@@ -363,10 +364,9 @@ void initADCSOC(void)
 //
 // ADC A Interrupt 1 ISR
 //
-extern Uint16 sineEnable ;
-extern Uint16 dacOffset;
-extern int QuadratureTable[40];
-Uint16 dacOutput;
+//extern Uint16 sineEnable ;
+//extern Uint16 dacOffset;
+//extern int QuadratureTable[40];
 __interrupt void adcA1ISR(void)  // note_2
 {
     if( ADC_getInterruptStatus(ADCB_BASE,ADC_INT_NUMBER1)){
@@ -422,16 +422,7 @@ __interrupt void adcA1ISR(void)  // note_2
         ToggleCount = 0;
     }
 
-    //if (sineEnable != 0)
-    //{
-        dacOutput = dacOffset + ((QuadratureTable[index % 0x20] ^ 0x8000) >> 5);
-    // }
-    //else
-    //{
-    //    dacOutput = dacOffset;
-    //}
-    DacaRegs.DACVALS.all = dacOutput;
-    //
+   //
     // Clear the interrupt flag
     //
     int xx;
