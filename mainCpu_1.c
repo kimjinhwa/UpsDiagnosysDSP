@@ -120,6 +120,7 @@ void fft_routine(void)
 
     uint16_t i, j;
     float freq = 0.0;
+    float calThd[9];
     hnd_rfft_adc->Tail = &(hnd_rfft->OutBuf);
 
     hnd_rfft->FFTSize   = RFFT_SIZE;       //FFT size
@@ -142,16 +143,29 @@ void fft_routine(void)
     RFFT_f32_mag(hnd_rfft);             //Calculate magnitude
     j = 1;
     freq = RFFTmagBuff[1];
-    for(i=2;i<RFFT_SIZE/2+1;i++){
-        //Looking for the maximum component of frequency spectrum
-        if(RFFTmagBuff[i] > freq){
-            j = i;
-            freq = RFFTmagBuff[i];
+    i=2;
+    int k;
+    for(k=0;k<9;k++){
+        for(;i<RFFT_SIZE/2+1;i++){
+            //Looking for the maximum component of frequency spectrum
+            if(RFFTmagBuff[i] > freq){
+                j = i;
+                freq = RFFTmagBuff[i];
+            }
         }
+        freq =(float)F_PER_SAMPLE * (float)j;
+        calThd[k]=RFFTmagBuff[j];
+        freq =0.0;
+        i= j+1+ (256/8) ;
     }
-    freq =(float)F_PER_SAMPLE * (float)j;
-    freq = freq;
+    float sumTotal=0.0;
+    for(k=1;k<9;k++)sumTotal+=calThd[k];
+    float THD=sumTotal/calThd[0];
+    THD=THD;
 }
+
+//Z= power((2*abs(Y)),2);Y(1)=0
+//THD = sqrt(sum(Z))/max((2*abs(Y)))
 
 void initLocalGpio()
 {
@@ -192,38 +206,38 @@ void init_timer0()
 {
     uint32_t temp;
     temp = (uint32_t)(DEVICE_SYSCLK_FREQ / 1000000 * 1000000);
-    CPUTimer_setPeriod(CPUTIMER0_BASE, temp);
-    CPUTimer_setPreScaler(CPUTIMER0_BASE, 0);
-    CPUTimer_stopTimer(CPUTIMER0_BASE);
-    CPUTimer_reloadTimerCounter(CPUTIMER0_BASE);
-    CPUTimer_startTimer(CPUTIMER0_BASE);
-    CPUTimer_enableInterrupt(CPUTIMER0_BASE);
+    CPUTimer_setPeriod(CPUTIMER1_BASE, temp);
+    CPUTimer_setPreScaler(CPUTIMER1_BASE, 0);
+    CPUTimer_stopTimer(CPUTIMER1_BASE);
+    CPUTimer_reloadTimerCounter(CPUTIMER1_BASE);
+    CPUTimer_startTimer(CPUTIMER1_BASE);
+    CPUTimer_enableInterrupt(CPUTIMER1_BASE);
 }
     //uint32_t elespedTime_b ;
     //uint32_t elespedTime_e ;
-    //elespedTime_b = CPUTimer_getTimerCount(CPUTIMER0_BASE);
-    //elespedTime_e = CPUTimer_getTimerCount(CPUTIMER0_BASE);
-    //CPUTimer_reloadTimerCounter(CPUTIMER0_BASE);
+    //elespedTime_b = CPUTimer_getTimerCount(CPUTIMER1_BASE);
+    //elespedTime_e = CPUTimer_getTimerCount(CPUTIMER1_BASE);
+    //CPUTimer_reloadTimerCounter(CPUTIMER1_BASE);
     //elespedTime_b = CpuTimer0Regs.TIM.all;
     //elespedTime_e = CpuTimer0Regs.TIM.all;
     //elespedTime_b = elespedTime_b -elespedTime_e;
-    //CPUTimer_reloadTimerCounter(CPUTIMER0_BASE);
+    //CPUTimer_reloadTimerCounter(CPUTIMER1_BASE);
     //elespedTime_b = CpuTimer0Regs.TIM.all;
 void main(void)
 {
     Device_init();
     Device_initGPIO();
     initLocalGpio();
-    init_timer0();
     Interrupt_initModule();
     Interrupt_initVectorTable();
-    Interrupt_register(INT_TIMER0, &cpuTimer0ISR);
-    Interrupt_register(INT_ADCA1, &adcA1ISR);
+
 
     initBuffer();
-    fft_routine();// <note_1> 105519  sysclk is need. fft routine test
-                   // 105519*50nS = 5,275,950nS = 5.2us
     index=0;
+
+    init_timer0();
+    Interrupt_register(INT_TIMER1, &cpuTimer0ISR);
+    Interrupt_register(INT_ADCA1, &adcA1ISR);
 
     setDacCI();
 
@@ -235,7 +249,7 @@ void main(void)
     bufferFull = 0;
 
     Interrupt_enable(INT_ADCA1);
-    Interrupt_enable(INT_TIMER0);
+    Interrupt_enable(INT_TIMER1);
     Interrupt_enable(INT_EPWM2);
 
     EINT;//enable inturrupt
@@ -249,6 +263,7 @@ void main(void)
         if(bufferFull ){
            // FFT Memory Filled with valid data.
            //request_fft
+            fft_routine(); // <note_1> 105519  sysclk is need. fft routine test
             bufferFull = 0;
         }
         //GPIO_togglePin(BLINKY_LED_GPIO );

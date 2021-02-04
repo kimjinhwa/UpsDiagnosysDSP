@@ -12,8 +12,8 @@
     - For run sample program, use RFFTin1Buff_test, Later It will be cleard. and Can use for another purpose.
 ### note_1 fft_routine();
 	- This Function take 105519 sysclk needed.( measured)
-    - At 200Mhz Cpu clock 1 sysclk is 50ns 
-    - So 105519*50nS = 5,275,950nS = 5.2us
+    - At 200Mhz Cpu clock 1 sysclk is 5ns 
+    - So 105519*10nS = 527,595 ns
 
 ### note_2 __interrupt void adcA1ISR(void)  
 	- Adc sampling is 8Khz (125us)
