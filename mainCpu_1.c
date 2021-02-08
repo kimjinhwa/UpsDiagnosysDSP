@@ -143,8 +143,27 @@ void fft_routine(void)
     RFFT_f32_mag(hnd_rfft);             //Calculate magnitude
     j = 1;
     freq = RFFTmagBuff[1];
-    i=2;
-    int k;
+    //int k;
+    float sumTotal=0.0;
+    float maxValue=0.0;
+        i=2;
+        for(;i<RFFT_SIZE/2+1;i++){
+            //Looking for the maximum component of frequency spectrum
+            if(RFFTmagBuff[i] > freq){
+                j = i;
+                freq = RFFTmagBuff[i];
+            }
+        }
+        maxValue=RFFTmagBuff[j];
+
+        freq =(float)F_PER_SAMPLE * (float)j;
+        i=2;
+        for(;i<RFFT_SIZE/2+1;i++){
+           sumTotal+=RFFTmagBuff[i]*RFFTmagBuff[i];
+        }
+        sumTotal=sqrt(sumTotal);
+    float THD=sumTotal/maxValue;
+    /*
     for(k=0;k<9;k++){
         for(;i<RFFT_SIZE/2+1;i++){
             //Looking for the maximum component of frequency spectrum
@@ -158,9 +177,9 @@ void fft_routine(void)
         freq =0.0;
         i= j+1+ (256/8) ;
     }
-    float sumTotal=0.0;
-    for(k=1;k<9;k++)sumTotal+=calThd[k];
-    float THD=sumTotal/calThd[0];
+    */
+    //for(k=1;k<9;k++)sumTotal+=calThd[k];
+    //float THD=sumTotal/calThd[0];
     THD=THD;
 }
 
@@ -234,6 +253,8 @@ void main(void)
     Interrupt_initModule();
     Interrupt_initVectorTable();
 
+
+    fft_routine(); // <note_1> 105519  sysclk is need. fft routine test
 
     initBuffer();
     index=0;

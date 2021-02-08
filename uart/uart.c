@@ -77,7 +77,7 @@ void initSCICFIFO(void)
     SCI_disableInterrupt(SCIC_BASE, SCI_INT_RXERR);
     SCI_enableInterrupt(SCIC_BASE, (SCI_INT_RXFF | SCI_INT_TXFF));
 
-    SCI_setFIFOInterruptLevel(SCIC_BASE, SCI_FIFO_TX2, SCI_FIFO_RX2);
+    SCI_setFIFOInterruptLevel(SCIC_BASE, SCI_FIFO_TX1, SCI_FIFO_RX1);
     SCI_performSoftwareReset(SCIC_BASE);
 
     SCI_resetTxFIFO(SCIC_BASE);
@@ -105,28 +105,11 @@ __interrupt void sciaTXFIFOISR(void)
 __interrupt void sciaRXFIFOISR(void)
 {
     uint16_t idx=0;
-    //cChar = MAP_UARTCharGet(g_ui32Base);
-    //rDataIndex
     ASSERT(SCI_isBaseValid(SCIC_BASE));
     idx=SCI_getRxFIFOStatus(SCIC_BASE) ;
     rDataIndex = ((rDataIndex+ idx > 80)) ? 0 : rDataIndex;
     SCI_readCharArray(SCIC_BASE, rDataA+rDataIndex, idx);
-    //idx=SCI_getRxFIFOStatus(SCIC_BASE) ;
-    SCI_writeCharArray(SCIC_BASE ,rDataA+rDataIndex , idx);
     rDataIndex+=idx;
-
-
-    /*
-    if(SCI_isFIFOEnabled(SCIC_BASE)){
-        // Wait until a character is available in the receive FIFO.
-        while(SCI_getRxFIFOStatus(SCIC_BASE) == SCI_FIFO_RX0)
-        { }
-        //array[i] = (uint16_t) (HWREGH(base + SCI_O_RXBUF) & SCI_RXBUF_SAR_M);
-    }
-    */
-
-
-    //rDataPointA = (rDataPointA + 1) & 0x00FF;
 
     SCI_clearOverflowStatus(SCIC_BASE);
     SCI_clearInterruptStatus(SCIC_BASE, SCI_INT_RXFF);
