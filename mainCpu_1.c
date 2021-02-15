@@ -5,6 +5,7 @@
 #include "fpu_rfft.h"            // Main include file
 #include "math.h"
 #include "DiagnosysUps.h"
+#include "dmaCopy.h"
 // Defines
 #pragma DATA_SECTION(RFFTin1Buff,"RFFTdata1")
 uint16_t RFFTin1Buff[2*RFFT_SIZE];
@@ -120,7 +121,7 @@ void fft_routine(void)
 
     uint16_t i, j;
     float freq = 0.0;
-    float calThd[9];
+    //float calThd[9];
     hnd_rfft_adc->Tail = &(hnd_rfft->OutBuf);
 
     hnd_rfft->FFTSize   = RFFT_SIZE;       //FFT size
@@ -245,6 +246,7 @@ void init_timer0()
 
 #include "uart/uart.h"
 //
+uint16_t dmaCopydone;
 void main(void)
 {
     Device_init();
@@ -269,6 +271,7 @@ void main(void)
 
     initEPWM();
     initADCSOC();
+    initDmaCopy();
     index = 0;
     bufferFull = 0;
 
@@ -276,24 +279,43 @@ void main(void)
     Interrupt_enable(INT_TIMER1);
     Interrupt_enable(INT_EPWM2);
     Interrupt_enable(INT_SCIC_RX);
+    Interrupt_enable(INT_DMA_CH6);
     //Interrupt_enable(INT_SCIC_TX);
 
     EINT;//enable inturrupt
     ERTM;//enable debug enable
     SysCtl_enablePeripheral(SYSCTL_PERIPH_CLK_TBCLKSYNC);
     EPWM_enableADCTrigger(EPWM1_BASE, EPWM_SOC_A);
-
+    //DMA_startChannel(DMA_CH6_BASE);
     //Test for fft...if request_fft is assigned then copy data to fft memory also.
     //UARTprintf((uint16_t *)"dir");
+    DMA_configAddresses(DMA_CH6_BASE,RFFTin1Buff , (const void *)adcAResults_3);
+    DMA_startChannel(DMA_CH6_BASE);
     SCI_writeCharArray(SCIC_BASE , (uint16_t *)"12345", 5);
+    const void *srcAddr;
     while(1)
     {
         if(bufferFull ){
             // FFT Memory Filled with valid data.
             //request_fft
-            fft_routine(); // <note_1> 105519  sysclk is need. fft routine test
             bufferFull = 0;
-            //sendData();
+            srcAddr =(const void *)(adcAResults_1 + (int)(request_fft/5)*0x1000 + RESULTS_BUFFER_SIZE*(request_fft%5)  ) ;
+            // HWREGH(RAM_ADCBUFFER1 + (int)(request_fft/5)*0x1000 + RESULTS_BUFFER_SIZE*(request_fft%5) ) ;
+            DMA_configAddresses(DMA_CH6_BASE,RFFTin1Buff , srcAddr);
+
+            int i=0;
+            while(!dmaCopydone){
+                i++;
+                DMA_forceTrigger(DMA_CH6_BASE); //DEVICE_DELAY_US(1);
+            }
+            request_fft++;// FFT data was Requested, And finished. It will be restart when receive valid request number again.
+            if(request_fft>20)request_fft=0;
+        }
+        if(dmaCopydone)// After bufferFull then excute fft_routine   68uS
+        {
+            fft_routine(); // <note_1> 105519  sysclk is need. fft routine test
+            dmaCopydone=0;
+            DMA_startChannel(DMA_CH6_BASE);
         }
         //GPIO_togglePin(BLINKY_LED_GPIO );
         //DEVICE_DELAY_US(500000);
@@ -455,12 +477,11 @@ __interrupt void adcA1ISR(void)  // note_2
     {
         // write data to fft array.
         // if request_fft is set to 21 or above... This data do not write.
-        for(index=0;index<RESULTS_BUFFER_SIZE ;index++)
-            RFFTin1Buff[index] =  HWREGH(RAM_ADCBUFFER1 + (int)(request_fft/5)*0x10000 + RESULTS_BUFFER_SIZE*(request_fft%5) +index) ;
+        // It takes 11309 cpu cycle.
+        //for(index=0;index<RESULTS_BUFFER_SIZE ;index++)
+        //    RFFTin1Buff[index] =  HWREGH(RAM_ADCBUFFER1 + (int)(request_fft/5)*0x1000 + RESULTS_BUFFER_SIZE*(request_fft%5) +index) ;
         index = 0;
         bufferFull = 1;
-        request_fft++;// FFT data was Requested, And finished. It will be restart when receive valid request number again.
-        if(request_fft>20)request_fft=0;
     }
     if (ToggleCount++ >= 15)
     {
