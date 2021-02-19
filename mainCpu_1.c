@@ -55,7 +55,7 @@ float RFFTF32Coef[RFFT_SIZE];
 #define RAM_ADCBUFFER3 0x0001A000
 #define RAM_ADCBUFFER4 0x0001B000
 
-#define BLINKY_LED_GPIO 31
+#define BLINKY_LED_GPIO     81
 #define PULSE_OUTPUT_GPIO 18
 #define GPIO_0     0
 #define EPSILON         0.1
@@ -266,7 +266,9 @@ void main(void)
     Interrupt_register(INT_TIMER1, &cpuTimer0ISR);
     Interrupt_register(INT_ADCA1, &adcA1ISR);
 
+#ifdef DAC_TEST_USED
     setDacCI();
+#endif
     initSCICFIFO();
     initADC();
 
@@ -358,9 +360,7 @@ void initADCSOC(void)
     // For 12-bit resolution, a sampling window of 15 (75 ns at a 200MHz // SYSCLK rate) will be used.
     //ADCA_BASE
     // max number 8 for adca, 8 * 44 sysclk cycle  352 * 5us = 1.762uS
-#ifndef DAC_TEST_USED
        ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER0, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN0, 15);//VIN_R
-#endif
        ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER1, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN1, 15);//VSTS_R
        ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER2, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN2, 15);//VO_R
        ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER3, ADC_TRIGGER_EPWM1_SOCA, ADC_CH_ADCIN3, 15);//IIN_R
@@ -389,11 +389,7 @@ void initADCSOC(void)
     //
     // Set SOC0 to set the interrupt 1 flag. Enable the interrupt and make
     // sure its flag is cleared.
-#ifndef DAC_TEST_USED
     ADC_setBurstModeConfig(ADCA_BASE,ADC_TRIGGER_EPWM1_SOCA , 8);
-#else
-    ADC_setBurstModeConfig(ADCA_BASE,ADC_TRIGGER_EPWM1_SOCA , 7);
-#endif
     ADC_setSOCPriority(ADCA_BASE,ADC_PRI_ALL_HIPRI);
     ADC_enableBurstMode(ADCA_BASE);
 
@@ -439,9 +435,7 @@ __interrupt void adcA1ISR(void)  // note_2
 {
     GPIO_togglePin(PULSE_OUTPUT_GPIO );
     if( ADC_getInterruptStatus(ADCB_BASE,ADC_INT_NUMBER1)){
-#ifndef DAC_TEST_USED
         adcAResults_1[index] = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER0);
-#endif
         adcAResults_2[index] = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER1);
         adcAResults_3[index] = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER2);
         adcAResults_4[index] = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER3);
