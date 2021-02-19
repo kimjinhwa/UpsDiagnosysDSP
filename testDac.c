@@ -77,7 +77,7 @@ __interrupt void pwmE2ISR(void)
     //{
     //    dacOutput = dacOffset;
     //}
-    DaccRegs.DACVALS.all = dacOutput;
+    DacbRegs.DACVALS.all = dacOutput;
     idx++;
     EPWM_clearEventTriggerInterruptFlag(EPWM2_BASE);
     Interrupt_clearACKGroup(INTERRUPT_ACK_GROUP3);
@@ -115,7 +115,6 @@ void setEpwm(){
 void setDacCI(void)
 {
     setEpwm();
-    //DACC_BASE
     /*
     EALLOW;
     DacaRegs.DACCTL.bit.DACREFSEL = 1;          // Use ADC references
@@ -125,10 +124,9 @@ void setDacCI(void)
     EDIS;
      */
     //VSTS_S1
-    DAC_setReferenceVoltage(DACC_BASE, DAC_REF_ADC_VREFHI);
-    DAC_setLoadMode(DACC_BASE,DAC_LOAD_SYSCLK);
-    DAC_setShadowValue(DACC_BASE,0x0800);
-    //DAC_setShadowValue(DACC_BASE,0x0FFD);
-    DAC_enableOutput(DACC_BASE);
+    DAC_setReferenceVoltage(DACB_BASE, DAC_REF_ADC_VREFHI);
+    DAC_setLoadMode(DACB_BASE,DAC_LOAD_SYSCLK);
+    DAC_setShadowValue(DACB_BASE,0x0800);
+    DAC_enableOutput(DACB_BASE);
 
 }
