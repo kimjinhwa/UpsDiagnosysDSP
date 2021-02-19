@@ -28,25 +28,26 @@ float RFFTF32Coef[RFFT_SIZE];
 #pragma DATA_SECTION(adcAResults_2,"ADCBUFFER1")
 #pragma DATA_SECTION(adcAResults_3,"ADCBUFFER1")
 #pragma DATA_SECTION(adcAResults_4,"ADCBUFFER1")
-#pragma DATA_SECTION(adcAResults_5,"ADCBUFFER1")
 
+#pragma DATA_SECTION(adcAResults_5,"ADCBUFFER2")
 #pragma DATA_SECTION(adcAResults_6,"ADCBUFFER2")
 #pragma DATA_SECTION(adcAResults_7,"ADCBUFFER2")
 #pragma DATA_SECTION(adcAResults_8,"ADCBUFFER2")
-#pragma DATA_SECTION(adcAResults_9,"ADCBUFFER2")
-#pragma DATA_SECTION(adcAResults_10,"ADCBUFFER2")
 
+#pragma DATA_SECTION(adcAResults_9,"ADCBUFFER3")
+#pragma DATA_SECTION(adcAResults_10,"ADCBUFFER3")
 #pragma DATA_SECTION(adcAResults_11,"ADCBUFFER3")
 #pragma DATA_SECTION(adcAResults_12,"ADCBUFFER3")
-#pragma DATA_SECTION(adcAResults_13,"ADCBUFFER3")
-#pragma DATA_SECTION(adcAResults_14,"ADCBUFFER3")
-#pragma DATA_SECTION(adcAResults_15,"ADCBUFFER3")
 
+#pragma DATA_SECTION(adcAResults_13,"ADCBUFFER4")
+#pragma DATA_SECTION(adcAResults_14,"ADCBUFFER4")
+#pragma DATA_SECTION(adcAResults_15,"ADCBUFFER4")
 #pragma DATA_SECTION(adcAResults_16,"ADCBUFFER4")
-#pragma DATA_SECTION(adcAResults_17,"ADCBUFFER4")
-#pragma DATA_SECTION(adcAResults_18,"ADCBUFFER4")
-#pragma DATA_SECTION(adcAResults_19,"ADCBUFFER4")
-#pragma DATA_SECTION(adcAResults_20,"ADCBUFFER4")
+
+#pragma DATA_SECTION(adcAResults_17,"ADCBUFFER5")
+#pragma DATA_SECTION(adcAResults_18,"ADCBUFFER5")
+#pragma DATA_SECTION(adcAResults_19,"ADCBUFFER5")
+#pragma DATA_SECTION(adcAResults_20,"ADCBUFFER5")
 
 #define RAM_BANK_SIZE  0x00010000
 #define RAM_ADCBUFFER1 0x00018000
