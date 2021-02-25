@@ -306,6 +306,8 @@ void main(void)
             // HWREGH(RAM_ADCBUFFER1 + (int)(request_fft/5)*0x1000 + RESULTS_BUFFER_SIZE*(request_fft%5) ) ;
             DMA_configAddresses(DMA_CH6_BASE,RFFTin1Buff , srcAddr);
 
+            UARTprintf((uint16_t *)"dir ");
+
             int i=0;
             while(!dmaCopydone){
                 i++;

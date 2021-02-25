@@ -8,8 +8,8 @@
                                // the longest expected full path name,
                                // including the file name, and a trailing null
                                // character.
-__interrupt void sciaTXFIFOISR(void);
-__interrupt void sciaRXFIFOISR(void);
+__interrupt void scicTXFIFOISR(void);
+__interrupt void scicRXFIFOISR(void);
 void initSCIAFIFO(void);
 void error(void);
 //
@@ -46,23 +46,23 @@ void initSCICFIFO(void)
 
     rDataPointA = sDataA[0];
 
-    GPIO_setMasterCore(139, GPIO_CORE_CPU1);
-    GPIO_setPinConfig(GPIO_139_SCIRXDC);
-    GPIO_setDirectionMode(139, GPIO_DIR_MODE_IN);
-    GPIO_setPadConfig(139, GPIO_PIN_TYPE_STD);
-    GPIO_setQualificationMode(139, GPIO_QUAL_ASYNC);
+    GPIO_setMasterCore(90, GPIO_CORE_CPU1);
+    GPIO_setPinConfig(GPIO_90_SCIRXDC);
+    GPIO_setDirectionMode(90, GPIO_DIR_MODE_IN);
+    GPIO_setPadConfig(90, GPIO_PIN_TYPE_STD);
+    GPIO_setQualificationMode(90, GPIO_QUAL_ASYNC);
 
 
-    GPIO_setMasterCore(56, GPIO_CORE_CPU1);
-    GPIO_setPinConfig(GPIO_56_SCITXDC);
-    GPIO_setDirectionMode(56, GPIO_DIR_MODE_OUT);
-    GPIO_setPadConfig(56, GPIO_PIN_TYPE_STD);
-    GPIO_setQualificationMode(56, GPIO_QUAL_ASYNC);
+    GPIO_setMasterCore(89, GPIO_CORE_CPU1);
+    GPIO_setPinConfig(GPIO_89_SCITXDC);
+    GPIO_setDirectionMode(89, GPIO_DIR_MODE_OUT);
+    GPIO_setPadConfig(89, GPIO_PIN_TYPE_STD);
+    GPIO_setQualificationMode(89, GPIO_QUAL_ASYNC);
 
     //
     // 8 char bits, 1 stop bit, no parity. Baud rate is 9600.
     //
-    SCI_setConfig(SCIC_BASE, DEVICE_LSPCLK_FREQ, 9600, (SCI_CONFIG_WLEN_8 |
+    SCI_setConfig(SCIC_BASE, DEVICE_LSPCLK_FREQ, 115200, (SCI_CONFIG_WLEN_8 |
                                                         SCI_CONFIG_STOP_ONE |
                                                         SCI_CONFIG_PAR_NONE));
     SCI_enableModule(SCIC_BASE);
@@ -83,8 +83,8 @@ void initSCICFIFO(void)
     SCI_resetTxFIFO(SCIC_BASE);
     SCI_resetRxFIFO(SCIC_BASE);
 
-    Interrupt_register(INT_SCIC_RX, sciaRXFIFOISR);
-    Interrupt_register(INT_SCIC_TX, sciaTXFIFOISR);
+    Interrupt_register(INT_SCIC_RX, scicRXFIFOISR);
+    Interrupt_register(INT_SCIC_TX, scicTXFIFOISR);
 
 
     Interrupt_clearACKGroup(INTERRUPT_ACK_GROUP8);
@@ -92,9 +92,9 @@ void initSCICFIFO(void)
 
 
 //
-// sciaTXFIFOISR - SCIC Transmit FIFO ISR
+// scicTXFIFOISR - SCIC Transmit FIFO ISR
 //
-__interrupt void sciaTXFIFOISR(void)
+__interrupt void scicTXFIFOISR(void)
 {
     //SCI_writeCharArray(SCIC_BASE, sDataA, 2);
     //for(i = 0; i < 2; i++) { sDataA[i] = (sDataA[i] + 1) & 0x00FF; }
@@ -102,7 +102,7 @@ __interrupt void sciaTXFIFOISR(void)
     Interrupt_clearACKGroup(INTERRUPT_ACK_GROUP8);
 }
 //
-__interrupt void sciaRXFIFOISR(void)
+__interrupt void scicRXFIFOISR(void)
 {
     uint16_t idx=0;
     ASSERT(SCI_isBaseValid(SCIC_BASE));
