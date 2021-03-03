@@ -32,10 +32,11 @@ void printPrompt(void){
     UARTprintf((uint16_t *)"Type \'help\' for help.\n");
     UARTprintf((uint16_t *)"\n%s> ", g_cCwdBuf);
 }
-
+/*
 void sendData(void){
     SCI_writeCharArray(SCIC_BASE , sDataA, 2);
 }
+*/
 void initSCICFIFO(void)
 {
     int i;
@@ -66,8 +67,8 @@ void initSCICFIFO(void)
                                                         SCI_CONFIG_STOP_ONE |
                                                         SCI_CONFIG_PAR_NONE));
     SCI_enableModule(SCIC_BASE);
-    SCI_enableLoopback(SCIC_BASE);
-    //SCI_disableLoopback(SCIC_BASE);
+    //SCI_enableLoopback(SCIC_BASE);
+    SCI_disableLoopback(SCIC_BASE);
     SCI_resetChannels(SCIC_BASE);
     SCI_enableFIFO(SCIC_BASE);
 
