@@ -6,10 +6,15 @@
 #include "math.h"
 #include "DiagnosysUps.h"
 #include "dmaCopy.h"
+#include <uart/uart485_B.h>
+#include <uart/uart_C.h>
+#include <uart/uart_D.h>
+#include <uart/uart_util.h>
 // Defines
 #pragma DATA_SECTION(RFFTin1Buff,"RFFTdata1")
 uint16_t RFFTin1Buff[2*RFFT_SIZE];
 extern uint16_t RFFTin1Buff_test[2*RFFT_SIZE];
+
 
 #pragma DATA_SECTION(RFFTmagBuff,"RFFTdata2")
 float RFFTmagBuff[RFFT_SIZE/2+1];
@@ -57,7 +62,7 @@ float RFFTF32Coef[RFFT_SIZE];
 
 #define BLINKY_LED_GPIO     81
 #define PULSE_OUTPUT_GPIO 18
-#define GPIO_0     0
+
 #define EPSILON         0.1
 
 #define DAC_TEST_USED   1
@@ -200,8 +205,6 @@ void initLocalGpio()
     GPIO_setMasterCore(PULSE_OUTPUT_GPIO , GPIO_CORE_CPU1);
     GPIO_setQualificationMode(PULSE_OUTPUT_GPIO , GPIO_QUAL_SYNC);
 
-    GPIO_setPadConfig(GPIO_0, GPIO_PIN_TYPE_STD);
-    GPIO_setPinConfig(GPIO_0_EPWM1A);
 }
 
 inline void initBuffer()
@@ -245,7 +248,6 @@ void init_timer0()
     //CPUTimer_reloadTimerCounter(CPUTIMER1_BASE);
     //elespedTime_b = CpuTimer0Regs.TIM.all;
 
-#include "uart/uart.h"
 //
 uint16_t dmaCopydone;
 void main(void)
@@ -270,6 +272,8 @@ void main(void)
     setDacCI();
 #endif
     initSCICFIFO();
+    initSCIDFIFO();
+    initSCIBFIFO();
     initADC();
 
     initEPWM();
@@ -281,8 +285,14 @@ void main(void)
     Interrupt_enable(INT_ADCA1);
     Interrupt_enable(INT_TIMER1);
     Interrupt_enable(INT_EPWM2);
+    Interrupt_enable(INT_SCIB_RX);
+    //Interrupt_enable(INT_SCIB_TX);
+
     Interrupt_enable(INT_SCIC_RX);
+    Interrupt_enable(INT_SCID_RX);
+
     Interrupt_enable(INT_DMA_CH6);
+
     //Interrupt_enable(INT_SCIC_TX);
 
     EINT;//enable inturrupt
@@ -294,7 +304,7 @@ void main(void)
     //UARTprintf((uint16_t *)"dir");
     DMA_configAddresses(DMA_CH6_BASE,RFFTin1Buff , (const void *)adcAResults_3);
     DMA_startChannel(DMA_CH6_BASE);
-    SCI_writeCharArray(SCIC_BASE , (uint16_t *)"12345", 5);
+    //SCI_writeCharArray(SCIC_BASE , (uint16_t *)"12345", 5);
     const void *srcAddr;
     while(1)
     {
@@ -306,7 +316,9 @@ void main(void)
             // HWREGH(RAM_ADCBUFFER1 + (int)(request_fft/5)*0x1000 + RESULTS_BUFFER_SIZE*(request_fft%5) ) ;
             DMA_configAddresses(DMA_CH6_BASE,RFFTin1Buff , srcAddr);
 
-            UARTprintf((uint16_t *)"dir ");
+            UARTprintf(SCIC_BASE,(uint16_t *)"\r\ndir_C:\\> ");
+            UARTprintf(SCID_BASE,(uint16_t *)"DD");
+            UARTprintf(SCIB_BASE,(uint16_t *)"ABCD");
 
             int i=0;
             while(!dmaCopydone){

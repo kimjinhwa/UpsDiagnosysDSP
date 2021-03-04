@@ -1,125 +1,84 @@
-#include "uart.h"
+#include "uart_util.h"
 #include "uartstdio.h"
 
-#define PATH_BUF_SIZE   80     // Defines the size of the buffers that hold the
-                               // path, or temporary data from the SD card.
-                               // There are two buffers allocated of this size.
-                               // The buffer size must be large enough to hold
-                               // the longest expected full path name,
-                               // including the file name, and a trailing null
-                               // character.
-__interrupt void scicTXFIFOISR(void);
-__interrupt void scicRXFIFOISR(void);
-void initSCIAFIFO(void);
-void error(void);
-//
-// Received data for SCI-A
-//
-//
-// Used for checking the received data
-//
+void UARTprintf(uint32_t base,const uint16_t *pcString, ...);
+void UARTvprintf(uint32_t base,const uint16_t *pcString, va_list vaArgP);
 
 static const char * const g_pcHex = "0123456789abcdef";
-
-uint16_t rDataPointA;
-uint16_t sDataA[80];
-uint16_t rDataA[80];
-uint16_t rDataIndex=0;
-uint16_t iSerialCommantRequested=0;
 static char g_cCwdBuf[PATH_BUF_SIZE] = "/";
-void printPrompt(void){
-    UARTprintf((uint16_t *)"\n\nUps System Diagnostics Program\n");
-    UARTprintf((uint16_t *)"Type \'help\' for help.\n");
-    UARTprintf((uint16_t *)"\n%s> ", g_cCwdBuf);
+void printPrompt(uint32_t base){
+    UARTprintf(base,(uint16_t *)"\n\nUps System Diagnostics Program\n");
+    UARTprintf(base,(uint16_t *)"Type \'help\' for help.\n");
+    UARTprintf(base,(uint16_t *)"\n%s> ", g_cCwdBuf);
 }
-/*
-void sendData(void){
-    SCI_writeCharArray(SCIC_BASE , sDataA, 2);
-}
-*/
-void initSCICFIFO(void)
+//*****************************************************************************
+//
+//! A simple UART based printf function supporting \%c, \%d, \%p, \%s, \%u,
+//! \%x, and \%X.
+//!
+//! \param pcString is the format string.
+//! \param ... are the optional arguments, which depend on the contents of the
+//! format string.
+//!
+//! This function is very similar to the C library <tt>fprintf()</tt> function.
+//! All of its output will be sent to the UART.  Only the following formatting
+//! characters are supported:
+//!
+//! - \%c to print a character
+//! - \%d or \%i to print a decimal value
+//! - \%s to print a string
+//! - \%u to print an unsigned decimal value
+//! - \%x to print a hexadecimal value using lower case letters
+//! - \%X to print a hexadecimal value using lower case letters (not upper case
+//! letters as would typically be used)
+//! - \%p to print a pointer as a hexadecimal value
+//! - \%\% to print out a \% character
+//!
+//! For \%s, \%d, \%i, \%u, \%p, \%x, and \%X, an optional number may reside
+//! between the \% and the format character, which specifies the minimum number
+//! of characters to use for that value; if preceded by a 0 then the extra
+//! characters will be filled with zeros instead of spaces.  For example,
+//! ``\%8d'' will use eight characters to print the decimal value with spaces
+//! added to reach eight; ``\%08d'' will use eight characters as well but will
+//! add zeroes instead of spaces.
+//!
+//! The type of the arguments after \e pcString must match the requirements of
+//! the format string.  For example, if an integer was passed where a string
+//! was expected, an error of some kind will most likely occur.
+//!
+//! \return None.
+//
+//*****************************************************************************
+//const uint16_t
+//#define Enable485(x) GPIO_writePin(GPIO_0_B485_EN ,x); DEVICE_DELAY_US(10);
+void UARTprintf(uint32_t base,const uint16_t *pcString, ...)
 {
-    int i;
-    for(i = 0; i < 80; i++)
+    va_list vaArgP;
+
+    //
+    // Start the varargs processing.
+    //
+    va_start(vaArgP, pcString);
+
+           // GPIO_writePin(GPIO_0_B485_EN ,1);
+    if(base == SCIB_BASE)
     {
-         sDataA[i] = i;
+            GPIO_writePin(GPIO_0_B485_EN ,1);
+            DEVICE_DELAY_US(5);
+            UARTvprintf(base, pcString, vaArgP);
+            while(SCI_isTransmitterBusy(SCIB_BASE) == true){};
+            GPIO_writePin(GPIO_0_B485_EN ,0);
     }
-
-    rDataPointA = sDataA[0];
-
-    GPIO_setMasterCore(90, GPIO_CORE_CPU1);
-    GPIO_setPinConfig(GPIO_90_SCIRXDC);
-    GPIO_setDirectionMode(90, GPIO_DIR_MODE_IN);
-    GPIO_setPadConfig(90, GPIO_PIN_TYPE_STD);
-    GPIO_setQualificationMode(90, GPIO_QUAL_ASYNC);
-
-
-    GPIO_setMasterCore(89, GPIO_CORE_CPU1);
-    GPIO_setPinConfig(GPIO_89_SCITXDC);
-    GPIO_setDirectionMode(89, GPIO_DIR_MODE_OUT);
-    GPIO_setPadConfig(89, GPIO_PIN_TYPE_STD);
-    GPIO_setQualificationMode(89, GPIO_QUAL_ASYNC);
+    else
+        UARTvprintf(base, pcString, vaArgP);
+    //if(base == SCIB_BASE) Enable485(0);
+    //GPIO_writePin(GPIO_0_B485_EN ,0);
 
     //
-    // 8 char bits, 1 stop bit, no parity. Baud rate is 9600.
+    // We're finished with the varargs now.
     //
-    SCI_setConfig(SCIC_BASE, DEVICE_LSPCLK_FREQ, 115200, (SCI_CONFIG_WLEN_8 |
-                                                        SCI_CONFIG_STOP_ONE |
-                                                        SCI_CONFIG_PAR_NONE));
-    SCI_enableModule(SCIC_BASE);
-    //SCI_enableLoopback(SCIC_BASE);
-    SCI_disableLoopback(SCIC_BASE);
-    SCI_resetChannels(SCIC_BASE);
-    SCI_enableFIFO(SCIC_BASE);
-
-    //
-    // RX and TX FIFO Interrupts Enabled
-    //
-    SCI_disableInterrupt(SCIC_BASE, SCI_INT_RXERR);
-    SCI_enableInterrupt(SCIC_BASE, (SCI_INT_RXFF | SCI_INT_TXFF));
-
-    SCI_setFIFOInterruptLevel(SCIC_BASE, SCI_FIFO_TX1, SCI_FIFO_RX1);
-    SCI_performSoftwareReset(SCIC_BASE);
-
-    SCI_resetTxFIFO(SCIC_BASE);
-    SCI_resetRxFIFO(SCIC_BASE);
-
-    Interrupt_register(INT_SCIC_RX, scicRXFIFOISR);
-    Interrupt_register(INT_SCIC_TX, scicTXFIFOISR);
-
-
-    Interrupt_clearACKGroup(INTERRUPT_ACK_GROUP8);
+    va_end(vaArgP);
 }
-
-
-//
-// scicTXFIFOISR - SCIC Transmit FIFO ISR
-//
-__interrupt void scicTXFIFOISR(void)
-{
-    //SCI_writeCharArray(SCIC_BASE, sDataA, 2);
-    //for(i = 0; i < 2; i++) { sDataA[i] = (sDataA[i] + 1) & 0x00FF; }
-    SCI_clearInterruptStatus(SCIC_BASE, SCI_INT_TXFF);
-    Interrupt_clearACKGroup(INTERRUPT_ACK_GROUP8);
-}
-//
-__interrupt void scicRXFIFOISR(void)
-{
-    uint16_t idx=0;
-    ASSERT(SCI_isBaseValid(SCIC_BASE));
-    idx=SCI_getRxFIFOStatus(SCIC_BASE) ;
-    rDataIndex = ((rDataIndex+ idx > 80)) ? 0 : rDataIndex;
-    SCI_readCharArray(SCIC_BASE, rDataA+rDataIndex, idx);
-    rDataIndex+=idx;
-
-    SCI_clearOverflowStatus(SCIC_BASE);
-    SCI_clearInterruptStatus(SCIC_BASE, SCI_INT_RXFF);
-    Interrupt_clearACKGroup(INTERRUPT_ACK_GROUP8);
-    //Example_PassCount++;
-}
-
-
-
 //*****************************************************************************
 //
 //! A simple UART based vprintf function supporting \%c, \%d, \%p, \%s, \%u,
@@ -160,8 +119,7 @@ __interrupt void scicRXFIFOISR(void)
 //
 //*****************************************************************************
 //const uint16_t * const
-void
-UARTvprintf(const uint16_t *pcString, va_list vaArgP)
+void UARTvprintf(uint32_t base,const uint16_t *pcString, va_list vaArgP)
 {
     uint32_t ui32Idx, ui32Value, ui32Pos, ui32Count, ui32Base, ui32Neg;
     uint16_t *pcStr, pcBuf[16], cFill;
@@ -188,7 +146,7 @@ UARTvprintf(const uint16_t *pcString, va_list vaArgP)
         //
         // Write this portion of the string.
         //
-        SCI_writeCharArray(SCIC_BASE,pcString, ui32Idx);
+        SCI_writeCharArray(base,pcString, ui32Idx);
 
         //
         // Skip the portion of the string that was written.
@@ -272,7 +230,7 @@ again:
                     //
                     // Print out the character.
                     //
-                    SCI_writeCharArray(SCIC_BASE,(uint16_t *)&ui32Value, 1);
+                    SCI_writeCharArray(base,(uint16_t *)&ui32Value, 1);
 
                     //
                     // This command has been handled.
@@ -403,7 +361,7 @@ again:
                     //
                     // Write the string.
                     //
-                    SCI_writeCharArray(SCIC_BASE,pcStr, ui32Idx);
+                    SCI_writeCharArray(base,pcStr, ui32Idx);
 
                     //
                     // Write any required padding spaces
@@ -413,7 +371,7 @@ again:
                         ui32Count -= ui32Idx;
                         while(ui32Count--)
                         {
-                            SCI_writeCharArray(SCIC_BASE,(uint16_t *)" ", 1);
+                            SCI_writeCharArray(base,(uint16_t *)" ", 1);
                         }
                     }
 
@@ -561,7 +519,7 @@ convert:
                     //
                     // Write the string.
                     //
-                    SCI_writeCharArray(SCIC_BASE, pcBuf, ui32Pos);
+                    SCI_writeCharArray(base, pcBuf, ui32Pos);
 
                     //
                     // This command has been handled.
@@ -577,7 +535,7 @@ convert:
                     //
                     // Simply write a single %.
                     //
-                    SCI_writeCharArray(SCIC_BASE,pcString - 1, 1);
+                    SCI_writeCharArray(base,pcString - 1, 1);
 
                     //
                     // This command has been handled.
@@ -593,7 +551,7 @@ convert:
                     //
                     // Indicate an error.
                     //
-                    SCI_writeCharArray(SCIC_BASE,(uint16_t *)"ERROR", 5);
+                    SCI_writeCharArray(base,(uint16_t *)"ERROR", 5);
 
                     //
                     // This command has been handled.
@@ -603,60 +561,4 @@ convert:
             }
         }
     }
-}
-
-//*****************************************************************************
-//
-//! A simple UART based printf function supporting \%c, \%d, \%p, \%s, \%u,
-//! \%x, and \%X.
-//!
-//! \param pcString is the format string.
-//! \param ... are the optional arguments, which depend on the contents of the
-//! format string.
-//!
-//! This function is very similar to the C library <tt>fprintf()</tt> function.
-//! All of its output will be sent to the UART.  Only the following formatting
-//! characters are supported:
-//!
-//! - \%c to print a character
-//! - \%d or \%i to print a decimal value
-//! - \%s to print a string
-//! - \%u to print an unsigned decimal value
-//! - \%x to print a hexadecimal value using lower case letters
-//! - \%X to print a hexadecimal value using lower case letters (not upper case
-//! letters as would typically be used)
-//! - \%p to print a pointer as a hexadecimal value
-//! - \%\% to print out a \% character
-//!
-//! For \%s, \%d, \%i, \%u, \%p, \%x, and \%X, an optional number may reside
-//! between the \% and the format character, which specifies the minimum number
-//! of characters to use for that value; if preceded by a 0 then the extra
-//! characters will be filled with zeros instead of spaces.  For example,
-//! ``\%8d'' will use eight characters to print the decimal value with spaces
-//! added to reach eight; ``\%08d'' will use eight characters as well but will
-//! add zeroes instead of spaces.
-//!
-//! The type of the arguments after \e pcString must match the requirements of
-//! the format string.  For example, if an integer was passed where a string
-//! was expected, an error of some kind will most likely occur.
-//!
-//! \return None.
-//
-//*****************************************************************************
-//const uint16_t
-void UARTprintf(const uint16_t *pcString, ...)
-{
-    va_list vaArgP;
-
-    //
-    // Start the varargs processing.
-    //
-    va_start(vaArgP, pcString);
-
-    UARTvprintf(pcString, vaArgP);
-
-    //
-    // We're finished with the varargs now.
-    //
-    va_end(vaArgP);
 }
