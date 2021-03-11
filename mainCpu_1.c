@@ -10,6 +10,7 @@
 #include <uart/uart_C.h>
 #include <uart/uart_D.h>
 #include <uart/uart_util.h>
+#include "ds1338z_Rtc.h"
 // Defines
 #pragma DATA_SECTION(RFFTin1Buff,"RFFTdata1")
 uint16_t RFFTin1Buff[2*RFFT_SIZE];
@@ -250,6 +251,7 @@ void init_timer0()
 
 //
 uint16_t dmaCopydone;
+
 void main(void)
 {
     Device_init();
@@ -258,6 +260,7 @@ void main(void)
     Interrupt_initModule();
     Interrupt_initVectorTable();
 
+    I2caRegs.I2CCLKH = 0x00;
 
     fft_routine(); // <note_1> 105519  sysclk is need. fft routine test
 
@@ -279,6 +282,10 @@ void main(void)
     initEPWM();
     initADCSOC();
     initDmaCopy();
+
+    initI2CFIFO();
+
+
     index = 0;
     bufferFull = 0;
 
@@ -293,6 +300,7 @@ void main(void)
 
     Interrupt_enable(INT_DMA_CH6);
 
+    Interrupt_enable(INT_I2CA_FIFO);
     //Interrupt_enable(INT_SCIC_TX);
 
     EINT;//enable inturrupt
@@ -301,11 +309,12 @@ void main(void)
     EPWM_enableADCTrigger(EPWM1_BASE, EPWM_SOC_A);
     //DMA_startChannel(DMA_CH6_BASE);
     //Test for fft...if request_fft is assigned then copy data to fft memory also.
-    //UARTprintf((uint16_t *)"dir");
     DMA_configAddresses(DMA_CH6_BASE,RFFTin1Buff , (const void *)adcAResults_3);
     DMA_startChannel(DMA_CH6_BASE);
-    //SCI_writeCharArray(SCIC_BASE , (uint16_t *)"12345", 5);
     const void *srcAddr;
+    struct rtctime_t time;
+    //time.year=2021;time.month=3;time.day=11;time.hour=12;time.minute=11;time.second=0;
+    //ds1338_write_time(&time);
     while(1)
     {
         if(bufferFull ){
@@ -319,7 +328,7 @@ void main(void)
             UARTprintf(SCIC_BASE,(uint16_t *)"\r\ndir_C:\\> ");
             UARTprintf(SCID_BASE,(uint16_t *)"DD");
             UARTprintf(SCIB_BASE,(uint16_t *)"ABCD");
-
+            ds1338_read_time(&time);
             int i=0;
             while(!dmaCopydone){
                 i++;
