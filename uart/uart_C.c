@@ -1,7 +1,8 @@
+
 #include <uart/uart_C.h>
 #include "uartstdio.h"
 #include "uart_util.h"
-
+/*
 
 __interrupt void scicTXFIFOISR(void);
 __interrupt void scicRXFIFOISR(void);
@@ -97,7 +98,4 @@ __interrupt void scicRXFIFOISR(void)
     Interrupt_clearACKGroup(INTERRUPT_ACK_GROUP8);
     //Example_PassCount++;
 }
-
-
-
-
+*/

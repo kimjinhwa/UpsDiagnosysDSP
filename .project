@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>DiagnosysUps</name>
+	<name>DiagnosysUps_CPU01</name>
 	<comment></comment>
 	<projects>
 	</projects>
@@ -38,7 +38,7 @@
 		<link>
 			<name>driverlib.lib</name>
 			<type>1</type>
-			<location>C:/ti/C2000Ware_3_03_00_00_Software/driverlib/f2837xd/driverlib/ccs/Debug/driverlib.lib</location>
+			<location>C:/ti/C2000Ware_3_04_00_00_Software/driverlib/f2837xd/driverlib/ccs/Debug/driverlib.lib</location>
 		</link>
 	</linkedResources>
 	<variableList>
@@ -52,11 +52,11 @@
 		</variable>
 		<variable>
 			<name>INSTALLROOT_2837X</name>
-			<value>file:/C:/ti/C2000Ware_3_03_00_00_Software/device_support/f2837xd</value>
+			<value>file:/C:/ti/C2000Ware_3_04_00_00_Software/device_support/f2837xd</value>
 		</variable>
 		<variable>
 			<name>INSTALLROOT_TO_FPU</name>
-			<value>file:/C:/ti/C2000Ware_3_03_00_00_Software/libraries/dsp/FPU/c28/include</value>
+			<value>file:/C:/ti/C2000Ware_3_04_00_00_Software/libraries/dsp/FPU/c28/include</value>
 		</variable>
 	</variableList>
 </projectDescription>

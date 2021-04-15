@@ -8,9 +8,9 @@ PAGE 0 :
    BEGIN            : origin = 0x000000, length = 0x000002
    RAMM0            : origin = 0x000123, length = 0x0002DD
    RAMD0            : origin = 0x00B000, length = 0x000800
-   RAMLS0           : origin = 0x008000, length = 0x000800
-   RAMLS1           : origin = 0x008800, length = 0x000800
-   RAMLS2           : origin = 0x009000, length = 0x000800
+   RAMLS012           : origin = 0x008000, length = 0x001800
+   //RAMLS1           : origin = 0x008800, length = 0x000800
+   //RAMLS2           : origin = 0x009000, length = 0x000800
    RAMLS3           : origin = 0x009800, length = 0x000800
    RAMLS4           : origin = 0x00A000, length = 0x000800
    RESET            : origin = 0x3FFFC0, length = 0x000002
@@ -61,7 +61,7 @@ PAGE 1 :
 SECTIONS
 {
    codestart        : > BEGIN,     PAGE = 0
-   .text            : >> RAMD0 |  RAMLS0 | RAMLS1 | RAMLS2 | RAMLS3 | RAMLS4,   PAGE = 0
+   .text            : >> RAMD0 |  RAMLS012 | RAMLS3 | RAMLS4,   PAGE = 0
    .cinit           : > RAMM0 ,     PAGE = 0
    .switch          : > RAMM0,     PAGE = 0
    .reset           : > RESET,     PAGE = 0, TYPE = DSECT /* not used, */
@@ -71,7 +71,7 @@ SECTIONS
    .bss             : > RAMLS5   ,    PAGE = 1
    .bss:output      : > RAMLS3,    PAGE = 0
    .init_array      : > RAMM0,     PAGE = 0
-   .const           : > RAMGS6     ,    PAGE = 1
+   .const           : > RAMGS1     ,    PAGE = 1
    .data            : > RAMLS5,    PAGE = 1
    .sysmem          : > RAMLS5,    PAGE = 1
 #else
@@ -81,11 +81,11 @@ SECTIONS
    .esysmem         : > RAMLS5,    PAGE = 1
 #endif
 
-   Filter_RegsFile  : > RAMGS0,    PAGE = 1
+   //Filter_RegsFile  : > RAMGS0,    PAGE = 1
 
 
    ramgs0           : > RAMGS0,    PAGE = 1
-   ramgs1           : > RAMGS1,    PAGE = 1
+   //ramgs1           : > RAMGS1,    PAGE = 1
    RFFTdata1_test   : > RAMGS7 ,   PAGE = 1, ALIGN = RFFT_ALIGNMENT
    RFFTdata1        : > RAMGS8 ,   PAGE = 1, ALIGN = RFFT_ALIGNMENT
    RFFTdata2        : > RAMGS9 ,   PAGE = 1, ALIGN = RFFT_ALIGNMENT
@@ -104,6 +104,7 @@ SECTIONS
    #endif
 #endif
 
+	//RtcTime : > CPU1TOCPU2RAM, PAGE = 1
    /* The following section definitions are required when using the IPC API Drivers */
     GROUP : > CPU1TOCPU2RAM, PAGE = 1
     {

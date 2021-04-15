@@ -55,6 +55,13 @@ float RFFTF32Coef[RFFT_SIZE];
 #pragma DATA_SECTION(adcAResults_19,"ADCBUFFER5")
 #pragma DATA_SECTION(adcAResults_20,"ADCBUFFER5")
 
+#pragma DATA_SECTION(time,"PUTBUFFER")
+struct rtctime_t time;
+
+#pragma DATA_SECTION(request_fft,"PUTBUFFER")
+uint16_t request_fft;
+//RtcTime
+
 #define RAM_BANK_SIZE  0x00010000
 #define RAM_ADCBUFFER1 0x00018000
 #define RAM_ADCBUFFER2 0x00019000
@@ -71,6 +78,9 @@ float RFFTF32Coef[RFFT_SIZE];
 #ifdef DAC_TEST_USED
 extern void setDacCI(void);
 #endif
+
+#define SD_DETECT 57
+#define SPI_CS 61
 
 uint16_t adcAResults_1[RESULTS_BUFFER_SIZE];   // Buffer for results
 uint16_t adcAResults_2[RESULTS_BUFFER_SIZE];   // Buffer for results
@@ -109,7 +119,6 @@ uint16_t fail = 0;
 
 // Main routine
 uint16_t index;                              // Index into result buffer
-uint16_t request_fft=0x00;
 volatile uint16_t bufferFull;                // Flag to indicate buffer is full
 void initADC(void);
 void initEPWM(void);
@@ -251,14 +260,60 @@ void init_timer0()
 
 //
 uint16_t dmaCopydone;
+void setupCpu2(){
+    SysCtl_selectCPUForPeripheral(SYSCTL_CPUSEL5_SCI,3,SYSCTL_CPUSEL_CPU2);//SCI_C is 3
+    GPIO_setPinConfig(GPIO_90_SCIRXDC);
+    GPIO_setPinConfig(GPIO_89_SCITXDC);
+
+
+    SysCtl_selectCPUForPeripheral(SYSCTL_CPUSEL6_SPI,1,SYSCTL_CPUSEL_CPU2);//SPI_A is 1
+	GPIO_setPinConfig(GPIO_57_GPIO57); //GPIO57 -> SD_DETECT Pinmux
+	GPIO_setPinConfig(GPIO_61_GPIO61); //GPIO61 -> SPI_CS Pinmux
+
+	GPIO_setPinConfig(GPIO_58_SPISIMOA);
+	GPIO_setPinConfig(GPIO_59_SPISOMIA);
+	GPIO_setPinConfig(GPIO_60_SPICLKA);
+	GPIO_setPinConfig(GPIO_19_SPISTEA);
+
+	//SD_DETECT initialization
+	GPIO_setDirectionMode(SD_DETECT, GPIO_DIR_MODE_IN);
+	GPIO_setPadConfig(SD_DETECT, GPIO_PIN_TYPE_STD);
+	GPIO_setMasterCore(SD_DETECT, GPIO_CORE_CPU2);
+	GPIO_setQualificationMode(SD_DETECT, GPIO_QUAL_SYNC);
+
+	//SPI_CS initialization
+	GPIO_setDirectionMode(SPI_CS, GPIO_DIR_MODE_OUT);
+	GPIO_setPadConfig(SPI_CS, GPIO_PIN_TYPE_STD);
+	GPIO_setMasterCore(SPI_CS, GPIO_CORE_CPU2);
+	GPIO_setQualificationMode(SPI_CS, GPIO_QUAL_SYNC);
+
+	MemCfg_setGSRAMMasterSel(MEMCFG_SECT_GS2,MEMCFG_GSRAMMASTER_CPU2);
+	MemCfg_setGSRAMMasterSel(MEMCFG_SECT_GS3,MEMCFG_GSRAMMASTER_CPU2);
+	MemCfg_setGSRAMMasterSel(MEMCFG_SECT_GS4,MEMCFG_GSRAMMASTER_CPU2);
+	MemCfg_setGSRAMMasterSel(MEMCFG_SECT_GS5,MEMCFG_GSRAMMASTER_CPU2);
+	//MemCfg_unlockConfig(MEMCFG_SECT_GS5);
+    //SysCtl_selectCPUForPeripheral(SYSCTL_CPUSEL5_SCI,3,SYSCTL_CPUSEL_CPU2);//SCI_C is 3
+    //EALLOW;
+    //DevCfgRegs.CPUSEL5.bit.SCI_C = 1;
+    //EDIS;
+}
 
 void main(void)
 {
+    //EALLOW;
+    //DevCfgRegs.CPUSEL5.bit.SCI_C=1;  //SCI_C to CPU 2
+    //EDIS;
+
+    request_fft=0;
     Device_init();
     Device_initGPIO();
+
+    setupCpu2();
+
     initLocalGpio();
     Interrupt_initModule();
     Interrupt_initVectorTable();
+
 
     I2caRegs.I2CCLKH = 0x00;
 
@@ -274,7 +329,8 @@ void main(void)
 #ifdef DAC_TEST_USED
     setDacCI();
 #endif
-    initSCICFIFO();
+    //initSCICFIFO(); //이 부분은 CPU2에서 관장 하기로 한다.
+
     initSCIDFIFO();
     initSCIBFIFO();
     initADC();
@@ -295,7 +351,7 @@ void main(void)
     Interrupt_enable(INT_SCIB_RX);
     //Interrupt_enable(INT_SCIB_TX);
 
-    Interrupt_enable(INT_SCIC_RX);
+    //Interrupt_enable(INT_SCIC_RX);
     Interrupt_enable(INT_SCID_RX);
 
     Interrupt_enable(INT_DMA_CH6);
@@ -311,34 +367,56 @@ void main(void)
     //Test for fft...if request_fft is assigned then copy data to fft memory also.
     DMA_configAddresses(DMA_CH6_BASE,RFFTin1Buff , (const void *)adcAResults_3);
     DMA_startChannel(DMA_CH6_BASE);
+
     const void *srcAddr;
-    struct rtctime_t time;
     //time.year=2021;time.month=3;time.day=11;time.hour=12;time.minute=11;time.second=0;
     //ds1338_write_time(&time);
+    ds1338_read_time(&time);
     while(1)
     {
         if(bufferFull ){
             // FFT Memory Filled with valid data.
             //request_fft
             bufferFull = 0;
-            srcAddr =(const void *)(adcAResults_1 + (int)(request_fft/5)*0x1000 + RESULTS_BUFFER_SIZE*(request_fft%5)  ) ;
+            //srcAddr =(const void *)(adcAResults_1 + (int)(request_fft/5)*0x1000 + RESULTS_BUFFER_SIZE*(request_fft%5)  ) ;
+                 if(request_fft==0)srcAddr =(const void *)(adcAResults_1 );
+            else if(request_fft==1)srcAddr =(const void *)(adcAResults_2 );
+            else if(request_fft==2)srcAddr =(const void *)(adcAResults_3 );
+            else if(request_fft==3)srcAddr =(const void *)(adcAResults_4 );
+            else if(request_fft==4)srcAddr =(const void *)(adcAResults_5 );
+            else if(request_fft==5)srcAddr =(const void *)(adcAResults_6 );
+            else if(request_fft==6)srcAddr =(const void *)(adcAResults_7 );
+            else if(request_fft==7)srcAddr =(const void *)(adcAResults_8 );
+            else if(request_fft==8)srcAddr =(const void *)(adcAResults_9 );
+            else if(request_fft==9)srcAddr =(const void *)(adcAResults_10 );
+            else if(request_fft==10)srcAddr =(const void *)(adcAResults_11 );
+            else if(request_fft==11)srcAddr =(const void *)(adcAResults_12 );
+            else if(request_fft==12)srcAddr =(const void *)(adcAResults_13 );
+            else if(request_fft==13)srcAddr =(const void *)(adcAResults_14 );
+            else if(request_fft==14)srcAddr =(const void *)(adcAResults_15 );
+            else if(request_fft==15)srcAddr =(const void *)(adcAResults_16 );
+            else if(request_fft==16)srcAddr =(const void *)(adcAResults_17 );
+            else if(request_fft==17)srcAddr =(const void *)(adcAResults_18 );
+            else if(request_fft==18)srcAddr =(const void *)(adcAResults_19);
+            else if(request_fft==19)srcAddr =(const void *)(adcAResults_20 );
+
             // HWREGH(RAM_ADCBUFFER1 + (int)(request_fft/5)*0x1000 + RESULTS_BUFFER_SIZE*(request_fft%5) ) ;
             DMA_configAddresses(DMA_CH6_BASE,RFFTin1Buff , srcAddr);
-
-            UARTprintf(SCIC_BASE,(uint16_t *)"\r\ndir_C:\\> ");
-            UARTprintf(SCID_BASE,(uint16_t *)"DD");
-            UARTprintf(SCIB_BASE,(uint16_t *)"ABCD");
-            ds1338_read_time(&time);
+            DMA_enableTrigger(DMA_CH6_BASE);
+            /*
             int i=0;
             while(!dmaCopydone){
                 i++;
-                DMA_forceTrigger(DMA_CH6_BASE); //DEVICE_DELAY_US(1);
+                //DMA_forceTrigger(DMA_CH6_BASE); //DEVICE_DELAY_US(1);
             }
+            */
+
             request_fft++;// FFT data was Requested, And finished. It will be restart when receive valid request number again.
             if(request_fft>20)request_fft=0;
         }
         if(dmaCopydone)// After bufferFull then excute fft_routine   68uS
         {
+            DMA_disableTrigger(DMA_CH6_BASE);
             fft_routine(); // <note_1> 105519  sysclk is need. fft routine test
             dmaCopydone=0;
             DMA_startChannel(DMA_CH6_BASE);
@@ -366,6 +444,7 @@ void initADC(void)
 // Function to configure ePWM1 to generate the SOC.
 void initEPWM(void)
 {
+    //EPWM1_BASE
 EPWM_SignalParams pwmSignal =
             {ADC_SAMPLING_FREQ, 0.5f, 0.5f, true, DEVICE_SYSCLK_FREQ, SYSCTL_EPWMCLK_DIV_2,
              EPWM_COUNTER_MODE_DOWN, EPWM_CLOCK_DIVIDER_1,
@@ -374,6 +453,18 @@ EPWM_SignalParams pwmSignal =
     EPWM_setADCTriggerSource(EPWM1_BASE,EPWM_SOC_A,EPWM_SOC_TBCTR_ZERO);
     EPWM_setADCTriggerEventPrescale(EPWM1_BASE, EPWM_SOC_A, 1);
     EPWM_configureSignal(EPWM1_BASE, &pwmSignal);
+
+    /*
+    EPWM_SignalParams pwmSignal_3 =
+            {1000000, 0.5f, 0.5f, true, DEVICE_SYSCLK_FREQ, SYSCTL_EPWMCLK_DIV_2,
+             EPWM_COUNTER_MODE_DOWN, EPWM_CLOCK_DIVIDER_1,
+            EPWM_HSCLOCK_DIVIDER_1};
+
+    EPWM_configureSignal(EPWM3_BASE, &pwmSignal_3);
+    //EPWM_setInterruptSource(EPWM3_BASE , EPWM_INT_TBCTR_ZERO );
+    //EPWM_setInterruptEventCount(EPWM3_BASE, 1U);
+    //EPWM_enableInterrupt(EPWM3_BASE);
+    */
 }
 
 // Function to configure ADCA's SOC0 to be triggered by ePWM1.
