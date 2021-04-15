@@ -118,7 +118,7 @@ uint16_t pass = 0;
 uint16_t fail = 0;
 
 // Main routine
-uint16_t index;                              // Index into result buffer
+uint16_t adc_index;                              // Index into result buffer
 volatile uint16_t bufferFull;                // Flag to indicate buffer is full
 void initADC(void);
 void initEPWM(void);
@@ -129,7 +129,7 @@ __interrupt void adcA1ISR(void);
 uint16_t ToggleCount = 0;
 void fft_routine(void)
 {
-
+    uint16_t index;                              // Index into result buffer
     for(index = 0; index < 2*RFFT_SIZE; index++)
     {
         RFFTin1Buff[index] = RFFTin1Buff_test[index];
@@ -219,7 +219,7 @@ void initLocalGpio()
 
 inline void initBuffer()
 {
-
+    uint16_t index;                              // Index into result buffer
     for(index = 0; index < RESULTS_BUFFER_SIZE; index++)
     {
         adcAResults_1[index] = 0; adcAResults_2[index] = 0; adcAResults_3[index] = 0; adcAResults_4[index] = 0; adcAResults_5[index] = 0;
@@ -227,7 +227,6 @@ inline void initBuffer()
         adcAResults_11[index] = 0; adcAResults_12[index] = 0; adcAResults_13[index] = 0; adcAResults_14[index] = 0; adcAResults_15[index] = 0;
         adcAResults_16[index] = 0; adcAResults_17[index] = 0; adcAResults_18[index] = 0; adcAResults_19[index] = 0; adcAResults_20[index] = 0;
     }
-
 }
 
 __interrupt void cpuTimer0ISR(void)
@@ -320,7 +319,7 @@ void main(void)
     fft_routine(); // <note_1> 105519  sysclk is need. fft routine test
 
     initBuffer();
-    index=0;
+    //index=0;
 
     init_timer0();
     Interrupt_register(INT_TIMER1, &cpuTimer0ISR);
@@ -342,7 +341,7 @@ void main(void)
     initI2CFIFO();
 
 
-    index = 0;
+    //index = 0;
     bufferFull = 0;
 
     Interrupt_enable(INT_ADCA1);
@@ -548,48 +547,48 @@ void initADCSOC(void)
 __interrupt void adcA1ISR(void)  // note_2
 {
     GPIO_togglePin(PULSE_OUTPUT_GPIO );
-    if( ADC_getInterruptStatus(ADCB_BASE,ADC_INT_NUMBER1)){
-        adcAResults_1[index] = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER0);
-        adcAResults_2[index] = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER1);
-        adcAResults_3[index] = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER2);
-        adcAResults_4[index] = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER3);
-        adcAResults_5[index] = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER4);
-        adcAResults_6[index] = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER5);
-        adcAResults_7[index] = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER6);
-        adcAResults_8[index] = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER7);
+    if( ADC_getInterruptStatus(ADCA_BASE,ADC_INT_NUMBER1)){
+        adcAResults_1[adc_index] = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER0);
+        adcAResults_2[adc_index] = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER1);
+        adcAResults_3[adc_index] = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER2);
+        adcAResults_4[adc_index] = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER3);
+        adcAResults_5[adc_index] = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER4);
+        adcAResults_6[adc_index] = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER5);
+        adcAResults_7[adc_index] = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER6);
+        adcAResults_8[adc_index] = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER7);
     }
     else fail++;
     if( ADC_getInterruptStatus(ADCB_BASE,ADC_INT_NUMBER1)){
-        adcAResults_9[index] = ADC_readResult(ADCBRESULT_BASE, ADC_SOC_NUMBER0);
-        //adcAResults_10[index] = ADC_readResult(ADCBRESULT_BASE, ADC_SOC_NUMBER1);
-        adcAResults_10[index] = ADC_readResult(ADCBRESULT_BASE, ADC_SOC_NUMBER1);
-        adcAResults_11[index] = ADC_readResult(ADCBRESULT_BASE, ADC_SOC_NUMBER2);
+        adcAResults_9[adc_index] = ADC_readResult(ADCBRESULT_BASE, ADC_SOC_NUMBER0);
+        //adcAResults_10[adc_index] = ADC_readResult(ADCBRESULT_BASE, ADC_SOC_NUMBER1);
+        adcAResults_10[adc_index] = ADC_readResult(ADCBRESULT_BASE, ADC_SOC_NUMBER1);
+        adcAResults_11[adc_index] = ADC_readResult(ADCBRESULT_BASE, ADC_SOC_NUMBER2);
     }
     else fail++;
     if( ADC_getInterruptStatus(ADCC_BASE,ADC_INT_NUMBER1)){
-        adcAResults_12[index] = ADC_readResult(ADCCRESULT_BASE, ADC_SOC_NUMBER0);
-        adcAResults_13[index] = ADC_readResult(ADCCRESULT_BASE, ADC_SOC_NUMBER1);
-        adcAResults_14[index] = ADC_readResult(ADCCRESULT_BASE, ADC_SOC_NUMBER3);
+        adcAResults_12[adc_index] = ADC_readResult(ADCCRESULT_BASE, ADC_SOC_NUMBER0);
+        adcAResults_13[adc_index] = ADC_readResult(ADCCRESULT_BASE, ADC_SOC_NUMBER1);
+        adcAResults_14[adc_index] = ADC_readResult(ADCCRESULT_BASE, ADC_SOC_NUMBER3);
     }
     else fail++;
     if( ADC_getInterruptStatus(ADCD_BASE,ADC_INT_NUMBER1)){
-        adcAResults_15[index] = ADC_readResult(ADCDRESULT_BASE, ADC_SOC_NUMBER0);
-        adcAResults_16[index] = ADC_readResult(ADCDRESULT_BASE, ADC_SOC_NUMBER1);
-        adcAResults_17[index] = ADC_readResult(ADCDRESULT_BASE, ADC_SOC_NUMBER2);
-        adcAResults_18[index] = ADC_readResult(ADCDRESULT_BASE, ADC_SOC_NUMBER3);
-        adcAResults_19[index] = ADC_readResult(ADCDRESULT_BASE, ADC_SOC_NUMBER4);
+        adcAResults_15[adc_index] = ADC_readResult(ADCDRESULT_BASE, ADC_SOC_NUMBER0);
+        adcAResults_16[adc_index] = ADC_readResult(ADCDRESULT_BASE, ADC_SOC_NUMBER1);
+        adcAResults_17[adc_index] = ADC_readResult(ADCDRESULT_BASE, ADC_SOC_NUMBER2);
+        adcAResults_18[adc_index] = ADC_readResult(ADCDRESULT_BASE, ADC_SOC_NUMBER3);
+        adcAResults_19[adc_index] = ADC_readResult(ADCDRESULT_BASE, ADC_SOC_NUMBER4);
     }
     else fail++;
-    index++;
+    adc_index++;
     // Set the bufferFull flag if the buffer is full
-    if(RESULTS_BUFFER_SIZE <= index)
+    if(RESULTS_BUFFER_SIZE <= adc_index)
     {
         // write data to fft array.
         // if request_fft is set to 21 or above... This data do not write.
         // It takes 11309 cpu cycle.
-        //for(index=0;index<RESULTS_BUFFER_SIZE ;index++)
-        //    RFFTin1Buff[index] =  HWREGH(RAM_ADCBUFFER1 + (int)(request_fft/5)*0x1000 + RESULTS_BUFFER_SIZE*(request_fft%5) +index) ;
-        index = 0;
+        //for(adc_index=0;adc_index<RESULTS_BUFFER_SIZE ;adc_index++)
+        //    RFFTin1Buff[adc_index] =  HWREGH(RAM_ADCBUFFER1 + (int)(request_fft/5)*0x1000 + RESULTS_BUFFER_SIZE*(request_fft%5) +adc_index) ;
+        adc_index = 0;
         bufferFull = 1;
     }
     if (ToggleCount++ >= 15)
