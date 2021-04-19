@@ -1,7 +1,7 @@
 #include "driverlib.h"
 #include "device.h"
 #include "F2837xD_device.h"
-
+#include "inc/hw_ipc.h"
 #include "fpu_rfft.h"            // Main include file
 #include "math.h"
 #include "DiagnosysUps.h"
@@ -125,6 +125,7 @@ void initEPWM(void);
 void initADCSOC(void);
 void fft_routine(void);
 __interrupt void adcA1ISR(void);
+__interrupt void pwmE3ISR(void);
 
 uint16_t ToggleCount = 0;
 void fft_routine(void)
@@ -229,6 +230,12 @@ inline void initBuffer()
     }
 }
 
+__interrupt void pwmE3ISR(void)  // note_2
+{
+    DMA_forceTrigger(DMA_CH6_BASE);
+    EPWM_clearEventTriggerInterruptFlag(EPWM3_BASE);
+    Interrupt_clearACKGroup(INTERRUPT_ACK_GROUP3);
+}
 __interrupt void cpuTimer0ISR(void)
 {
     cpuTimer0IntCount++;
@@ -296,7 +303,14 @@ void setupCpu2(){
     //DevCfgRegs.CPUSEL5.bit.SCI_C = 1;
     //EDIS;
 }
-
+void cheeck_ipc()
+{
+    if(  ((HWREG(IPC_BASE + IPC_O_STS)) & IPC_SET_IPC21) == IPC_SET_IPC21 )   // 메모리를 옭겨도 되면 옮긴다.
+    {
+        ds1338_read_time(&time);
+        HWREG(IPC_BASE + IPC_O_ACK) = IPC_SET_IPC21;
+    }
+}
 void main(void)
 {
     //EALLOW;
@@ -324,6 +338,7 @@ void main(void)
     init_timer0();
     Interrupt_register(INT_TIMER1, &cpuTimer0ISR);
     Interrupt_register(INT_ADCA1, &adcA1ISR);
+    Interrupt_register(INT_EPWM3, &pwmE3ISR);
 
 #ifdef DAC_TEST_USED
     setDacCI();
@@ -335,6 +350,7 @@ void main(void)
     initADC();
 
     initEPWM();
+
     initADCSOC();
     initDmaCopy();
 
@@ -343,10 +359,12 @@ void main(void)
 
     //index = 0;
     bufferFull = 0;
+    dmaCopydone =0;
 
     Interrupt_enable(INT_ADCA1);
     Interrupt_enable(INT_TIMER1);
     Interrupt_enable(INT_EPWM2);
+    Interrupt_enable(INT_EPWM3);
     Interrupt_enable(INT_SCIB_RX);
     //Interrupt_enable(INT_SCIB_TX);
 
@@ -364,15 +382,19 @@ void main(void)
     EPWM_enableADCTrigger(EPWM1_BASE, EPWM_SOC_A);
     //DMA_startChannel(DMA_CH6_BASE);
     //Test for fft...if request_fft is assigned then copy data to fft memory also.
-    DMA_configAddresses(DMA_CH6_BASE,RFFTin1Buff , (const void *)adcAResults_3);
-    DMA_startChannel(DMA_CH6_BASE);
+    //DMA_configAddresses(DMA_CH6_BASE,RFFTin1Buff , (const void *)adcAResults_3);
+    //DMA_startChannel(DMA_CH6_BASE);
 
     const void *srcAddr;
     //time.year=2021;time.month=3;time.day=11;time.hour=12;time.minute=11;time.second=0;
     //ds1338_write_time(&time);
     ds1338_read_time(&time);
+    //Device_cal(); // copy the trim value for ADC
+    //ADC_setOFFSETTRIM();
+    //ADC_setINLTRIM();
     while(1)
     {
+        cheeck_ipc();
         if(bufferFull ){
             // FFT Memory Filled with valid data.
             //request_fft
@@ -399,32 +421,63 @@ void main(void)
             else if(request_fft==18)srcAddr =(const void *)(adcAResults_19);
             else if(request_fft==19)srcAddr =(const void *)(adcAResults_20 );
 
+            //HWREG(IPC_BASE + IPC_O_SET) = IPC_SET_IPC1;
             // HWREGH(RAM_ADCBUFFER1 + (int)(request_fft/5)*0x1000 + RESULTS_BUFFER_SIZE*(request_fft%5) ) ;
-            DMA_configAddresses(DMA_CH6_BASE,RFFTin1Buff , srcAddr);
-            DMA_enableTrigger(DMA_CH6_BASE);
-            /*
-            int i=0;
-            while(!dmaCopydone){
-                i++;
-                //DMA_forceTrigger(DMA_CH6_BASE); //DEVICE_DELAY_US(1);
-            }
-            */
+            if(((HWREG(IPC_BASE + IPC_O_STS)) & (1<<request_fft)) == 0U  ) // 메모리를 옭겨도 되면 옮긴다.
+            {
+                DMA_configAddresses(DMA_CH6_BASE,RFFTin1Buff , srcAddr);
+                switch(request_fft){
+                case 0: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC0; break;
+                case 1: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC1; break;
+                case 2: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC2; break;
+                case 3: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC3; break;
+                case 4: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC4; break;
+                case 5: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC5; break;
+                case 6: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC6; break;
+                case 7: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC7; break;
+                case 8: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC8; break;
+                case 9: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC9; break;
+                case 10: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC10; break;
+                case 11: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC11; break;
+                case 12: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC12; break;
+                case 13: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC13; break;
+                case 14: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC14; break;
+                case 15: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC15; break;
+                case 16: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC16; break;
+                case 17: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC17; break;
+                case 18: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC18; break;
+                case 19: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC19; break;
+                }
+                //HWREG(IPC_BASE + IPC_O_SET) = (uint32_t)(1U<<request_fft);//IPC_SET_IPC1;현재 작업중인 포인트를 알려 준다.
 
+                DMA_enableTrigger(DMA_CH6_BASE);
+                DMA_startChannel(DMA_CH6_BASE);
+            }
+            else{
+                // Now This memory is used for anyone;
+                //__asm('NOP');
+                request_fft++;
+                request_fft--;
+                NOP;
+            }
             request_fft++;// FFT data was Requested, And finished. It will be restart when receive valid request number again.
             if(request_fft>20)request_fft=0;
         }
         if(dmaCopydone)// After bufferFull then excute fft_routine   68uS
         {
+
+            //HWREG(IPC_BASE + IPC_O_SET) = IPC_SET_IPC1;
+            //while((HWREG(IPC_BASE + IPC_O_STS) & IPC_STS_IPC1) == 0U)
             DMA_disableTrigger(DMA_CH6_BASE);
             fft_routine(); // <note_1> 105519  sysclk is need. fft routine test
             dmaCopydone=0;
-            DMA_startChannel(DMA_CH6_BASE);
+            HWREG(IPC_BASE + IPC_O_CLR) = 0xFFFFFFFF; //작업이 끝났으므로 사용가능함을 알려준다.
         }
-        //GPIO_togglePin(BLINKY_LED_GPIO );
-        //DEVICE_DELAY_US(500000);
     }
 }
 
+        //GPIO_togglePin(BLINKY_LED_GPIO );
+        //DEVICE_DELAY_US(500000);
 //
 // Function to configure and power up ADCA.
 //
@@ -453,16 +506,16 @@ EPWM_SignalParams pwmSignal =
     EPWM_setADCTriggerEventPrescale(EPWM1_BASE, EPWM_SOC_A, 1);
     EPWM_configureSignal(EPWM1_BASE, &pwmSignal);
 
-    /*
     EPWM_SignalParams pwmSignal_3 =
-            {1000000, 0.5f, 0.5f, true, DEVICE_SYSCLK_FREQ, SYSCTL_EPWMCLK_DIV_2,
+            {4000000, 0.5f, 0.5f, true, DEVICE_SYSCLK_FREQ, SYSCTL_EPWMCLK_DIV_2,
              EPWM_COUNTER_MODE_DOWN, EPWM_CLOCK_DIVIDER_1,
             EPWM_HSCLOCK_DIVIDER_1};
 
     EPWM_configureSignal(EPWM3_BASE, &pwmSignal_3);
-    //EPWM_setInterruptSource(EPWM3_BASE , EPWM_INT_TBCTR_ZERO );
-    //EPWM_setInterruptEventCount(EPWM3_BASE, 1U);
-    //EPWM_enableInterrupt(EPWM3_BASE);
+    EPWM_setInterruptSource(EPWM3_BASE , EPWM_INT_TBCTR_ZERO );
+    EPWM_setInterruptEventCount(EPWM3_BASE, 1U);
+    EPWM_enableInterrupt(EPWM3_BASE);
+    /*
     */
 }
 
@@ -544,6 +597,7 @@ void initADCSOC(void)
 //extern Uint16 sineEnable ;
 //extern Uint16 dacOffset;
 //extern int QuadratureTable[40];
+
 __interrupt void adcA1ISR(void)  // note_2
 {
     GPIO_togglePin(PULSE_OUTPUT_GPIO );
