@@ -1,3 +1,7 @@
+// Adc Data 버퍼는 1024개
+// 데이라 PWM :  8Khz
+// 따라서 FFT수행 간격은 1024*8khz
+
 #include "driverlib.h"
 #include "device.h"
 #include "F2837xD_device.h"
@@ -5,7 +9,7 @@
 #include "fpu_rfft.h"            // Main include file
 #include "math.h"
 #include "DiagnosysUps.h"
-#include "dmaCopy.h"
+//#include "dmaCopy.h"
 #include <uart/uart485_B.h>
 #include <uart/uart_C.h>
 #include <uart/uart_D.h>
@@ -14,8 +18,7 @@
 // Defines
 #pragma DATA_SECTION(RFFTin1Buff,"RFFTdata1")
 uint16_t RFFTin1Buff[2*RFFT_SIZE];
-extern uint16_t RFFTin1Buff_test[2*RFFT_SIZE];
-
+//extern uint16_t RFFTin1Buff_test[2*RFFT_SIZE];
 
 #pragma DATA_SECTION(RFFTmagBuff,"RFFTdata2")
 float RFFTmagBuff[RFFT_SIZE/2+1];
@@ -54,6 +57,15 @@ float RFFTF32Coef[RFFT_SIZE];
 #pragma DATA_SECTION(adcAResults_18,"ADCBUFFER5")
 #pragma DATA_SECTION(adcAResults_19,"ADCBUFFER5")
 #pragma DATA_SECTION(adcAResults_20,"ADCBUFFER5")
+
+struct st_fft_result {
+    float maxValue;
+    float freq;
+    float THD ;
+};
+
+#pragma DATA_SECTION(fft_result,"PUTBUFFER")
+struct st_fft_result fft_result[20];
 
 #pragma DATA_SECTION(time,"PUTBUFFER")
 struct rtctime_t time;
@@ -103,7 +115,6 @@ uint16_t adcAResults_18[RESULTS_BUFFER_SIZE];   // Buffer for results
 uint16_t adcAResults_19[RESULTS_BUFFER_SIZE];   // Buffer for results
 uint16_t adcAResults_20[RESULTS_BUFFER_SIZE];   // Buffer for results
 
-
 //TIMER
 uint32_t cpuTimer0IntCount;
 
@@ -119,28 +130,41 @@ uint16_t fail = 0;
 
 // Main routine
 uint16_t adc_index;                              // Index into result buffer
-volatile uint16_t bufferFull;                // Flag to indicate buffer is full
+//volatile uint16_t memoryCopyComplete;                // Flag to indicate buffer is full
+//volatile int16_t memoryRequestCopy;                // Flag to indicate buffer is full
+
 void initADC(void);
 void initEPWM(void);
 void initADCSOC(void);
 void fft_routine(void);
 __interrupt void adcA1ISR(void);
 __interrupt void pwmE3ISR(void);
-
+//! <table>
+//! <caption id="multi_row">Performance Data</caption>
+//! <tr><th> Samples <th> Cycles
+//! <tr><td> 64      <td> 1295
+//! <tr><td> 128     <td> 2769
+//! <tr><td> 256     <td> 6059
+//! <tr><td> 512     <td> 13360  * 5ns -> 66800ns ->66us
+//! <tr><td> 1024    <td> 29466
+//! </table>
 uint16_t ToggleCount = 0;
 void fft_routine(void)
 {
-    uint16_t index;                              // Index into result buffer
+    //uint16_t index;                              // Index into result buffer
+    float sumTotal=0.0;
+    float maxValue=0.0;
+    float freq = 0.0;
+    uint16_t i, j;
+    /*
     for(index = 0; index < 2*RFFT_SIZE; index++)
     {
         RFFTin1Buff[index] = RFFTin1Buff_test[index];
     }
+    */
 
-    uint16_t i, j;
-    float freq = 0.0;
     //float calThd[9];
     hnd_rfft_adc->Tail = &(hnd_rfft->OutBuf);
-
     hnd_rfft->FFTSize   = RFFT_SIZE;       //FFT size
     hnd_rfft->FFTStages = RFFT_STAGES;     //FFT stages
 
@@ -161,26 +185,27 @@ void fft_routine(void)
     RFFT_f32_mag(hnd_rfft);             //Calculate magnitude
     j = 1;
     freq = RFFTmagBuff[1];
-    //int k;
-    float sumTotal=0.0;
-    float maxValue=0.0;
-        i=2;
-        for(;i<RFFT_SIZE/2+1;i++){
-            //Looking for the maximum component of frequency spectrum
-            if(RFFTmagBuff[i] > freq){
-                j = i;
-                freq = RFFTmagBuff[i];
-            }
+    i=2;
+    for(;i<RFFT_SIZE/2+1;i++){
+        //Looking for the maximum component of frequency spectrum
+        if(RFFTmagBuff[i] > freq){
+            j = i;
+            freq = RFFTmagBuff[i];
         }
-        maxValue=RFFTmagBuff[j];
+    }
+    maxValue=RFFTmagBuff[j];
 
-        freq =(float)F_PER_SAMPLE * (float)j;
-        i=2;
-        for(;i<RFFT_SIZE/2+1;i++){
-           sumTotal+=RFFTmagBuff[i]*RFFTmagBuff[i];
-        }
-        sumTotal=sqrt(sumTotal);
+    freq =(float)F_PER_SAMPLE * (float)j;
+    i=2;
+    for(;i<RFFT_SIZE/2+1;i++){
+       sumTotal+=RFFTmagBuff[i]*RFFTmagBuff[i];
+    }
+    sumTotal=sqrt(sumTotal);
     float THD=sumTotal/maxValue;
+    fft_result[request_fft].THD = THD;
+    fft_result[request_fft].freq = freq;
+    fft_result[request_fft].maxValue = maxValue;
+
     /*
     for(k=0;k<9;k++){
         for(;i<RFFT_SIZE/2+1;i++){
@@ -198,11 +223,12 @@ void fft_routine(void)
     */
     //for(k=1;k<9;k++)sumTotal+=calThd[k];
     //float THD=sumTotal/calThd[0];
-    THD=THD;
+    //THD=THD;
 }
 
 //Z= power((2*abs(Y)),2);Y(1)=0
 //THD = sqrt(sum(Z))/max((2*abs(Y)))
+
 
 void initLocalGpio()
 {
@@ -232,7 +258,7 @@ inline void initBuffer()
 
 __interrupt void pwmE3ISR(void)  // note_2
 {
-    DMA_forceTrigger(DMA_CH6_BASE);
+    //DMA_forceTrigger(DMA_CH6_BASE);
     EPWM_clearEventTriggerInterruptFlag(EPWM3_BASE);
     Interrupt_clearACKGroup(INTERRUPT_ACK_GROUP3);
 }
@@ -297,6 +323,7 @@ void setupCpu2(){
 	MemCfg_setGSRAMMasterSel(MEMCFG_SECT_GS3,MEMCFG_GSRAMMASTER_CPU2);
 	MemCfg_setGSRAMMasterSel(MEMCFG_SECT_GS4,MEMCFG_GSRAMMASTER_CPU2);
 	MemCfg_setGSRAMMasterSel(MEMCFG_SECT_GS5,MEMCFG_GSRAMMASTER_CPU2);
+	MemCfg_setGSRAMMasterSel(MEMCFG_SECT_GS7,MEMCFG_GSRAMMASTER_CPU2);
 	//MemCfg_unlockConfig(MEMCFG_SECT_GS5);
     //SysCtl_selectCPUForPeripheral(SYSCTL_CPUSEL5_SCI,3,SYSCTL_CPUSEL_CPU2);//SCI_C is 3
     //EALLOW;
@@ -305,19 +332,55 @@ void setupCpu2(){
 }
 void cheeck_ipc()
 {
-    if(  ((HWREG(IPC_BASE + IPC_O_STS)) & IPC_SET_IPC21) == IPC_SET_IPC21 )   // 메모리를 옭겨도 되면 옮긴다.
+    //IPC 21번 시간요청
+    uint16_t pos=1;
+    uint16_t i;
+    unsigned long value;
+    value = (HWREG(IPC_BASE + IPC_O_STS));
+    for(i=1;i<21;i++){
+         if(value &  (pos << i)) {
+             request_fft = i-1;  // 복사할 메모리 위치를 지정한다.
+             dmaCopydone=0;  //이렇게 하면 인터럽트에서 메모리를 복사한다.
+             while(dmaCopydone == 0){
+                 DEVICE_DELAY_US(1);    //이제 메모리 복사가 끟났다.  dmaCopydone  는 1로 셋팅되었다.
+             }
+             //fft_routine();     // 현재 위치의 FFT를 수행한다.
+             //fft는 기존의 것을 사용하자.
+             //이 메모리는 안전하게 사용할 수 있는 원시 데이타가 된다.
+             HWREG(IPC_BASE + IPC_O_ACK) = 1UL << (request_fft +1) ; //CPU2에 데이타를 갖고 가도 좋다고 알려준다.
+             DEVICE_DELAY_US(20);// CPU2에서 데이타를 갖고 갈수 있는 시간을 준다. 데이타 갯수 = 5ns*((1024*2cycle) +4cycle)= 10240us
+             dmaCopydone=0;  // 0으로 놓아야 다시 인터럽트에서 메모리에 복사를 시작한다.
+             break;
+         }
+    }
+    if(  ((HWREG(IPC_BASE + IPC_O_STS)) & IPC_SET_IPC21) == IPC_SET_IPC21 )   // 시간을 메모리에 옮겨 달라는 요청을 받으면 ...
     {
         ds1338_read_time(&time);
-        HWREG(IPC_BASE + IPC_O_ACK) = IPC_SET_IPC21;
+        HWREG(IPC_BASE + IPC_O_ACK) = IPC_ACK_IPC21;
     }
+    if(  ((HWREG(IPC_BASE + IPC_O_STS)) & IPC_SET_IPC22) == IPC_SET_IPC22 )   // 시간을 메모리에 옮겨 달라는 요청을 받으면 ...
+    {
+        //FFT메모리를 읽기 위함이다.
+        //FFT가 수행되지 않는 상태에서 읽으면 되니까.
+        //잠깐의 Delay를  주면 되겠다
+        HWREG(IPC_BASE + IPC_O_ACK) = IPC_ACK_IPC22;
+        DEVICE_DELAY_US(20);
+    }
+
 }
+const void *adcsrcAddr[20];
+const void *srcAddr;
 void main(void)
 {
     //EALLOW;
     //DevCfgRegs.CPUSEL5.bit.SCI_C=1;  //SCI_C to CPU 2
     //EDIS;
+    adcsrcAddr[0] =(const void *)(adcAResults_1 ), adcsrcAddr[1] =(const void *)(adcAResults_2 ), adcsrcAddr[2] =(const void *)(adcAResults_3 ), adcsrcAddr[3] =(const void *)(adcAResults_4 ),
+    adcsrcAddr[4] =(const void *)(adcAResults_5 ), adcsrcAddr[5] =(const void *)(adcAResults_6 ), adcsrcAddr[6] =(const void *)(adcAResults_7 ), adcsrcAddr[7] =(const void *)(adcAResults_8 ),
+    adcsrcAddr[8] =(const void *)(adcAResults_9 ), adcsrcAddr[9] =(const void *)(adcAResults_10 ),adcsrcAddr[10] = (const void *)(adcAResults_11 ), adcsrcAddr[11] =(const void *)(adcAResults_12 ),
+    adcsrcAddr[12] =(const void *)(adcAResults_13 ),adcsrcAddr[13] = (const void *)(adcAResults_14 ),adcsrcAddr[14] = (const void *)(adcAResults_15 ),adcsrcAddr[15] = (const void *)(adcAResults_16 ),
+    adcsrcAddr[16] =(const void *)(adcAResults_17 ),adcsrcAddr[17] = (const void *)(adcAResults_18 ),adcsrcAddr[18] = (const void *)(adcAResults_19 ),adcsrcAddr[19] = (const void *)(adcAResults_20 );
 
-    request_fft=0;
     Device_init();
     Device_initGPIO();
 
@@ -329,6 +392,7 @@ void main(void)
 
 
     I2caRegs.I2CCLKH = 0x00;
+    request_fft=0;
 
     fft_routine(); // <note_1> 105519  sysclk is need. fft routine test
 
@@ -352,13 +416,14 @@ void main(void)
     initEPWM();
 
     initADCSOC();
-    initDmaCopy();
+    //initDmaCopy();
 
     initI2CFIFO();
 
 
     //index = 0;
-    bufferFull = 0;
+    //memoryCopyComplete = 0;
+    //memoryRequestCopy=-1;
     dmaCopydone =0;
 
     Interrupt_enable(INT_ADCA1);
@@ -371,7 +436,7 @@ void main(void)
     //Interrupt_enable(INT_SCIC_RX);
     Interrupt_enable(INT_SCID_RX);
 
-    Interrupt_enable(INT_DMA_CH6);
+    //Interrupt_enable(INT_DMA_CH6);
 
     Interrupt_enable(INT_I2CA_FIFO);
     //Interrupt_enable(INT_SCIC_TX);
@@ -380,98 +445,26 @@ void main(void)
     ERTM;//enable debug enable
     SysCtl_enablePeripheral(SYSCTL_PERIPH_CLK_TBCLKSYNC);
     EPWM_enableADCTrigger(EPWM1_BASE, EPWM_SOC_A);
-    //DMA_startChannel(DMA_CH6_BASE);
-    //Test for fft...if request_fft is assigned then copy data to fft memory also.
-    //DMA_configAddresses(DMA_CH6_BASE,RFFTin1Buff , (const void *)adcAResults_3);
-    //DMA_startChannel(DMA_CH6_BASE);
+    DEVICE_DELAY_US(128000);// 125*1024 128us at 8Khz    128us
+                              //한번의 ADC를 다 읽는데 걸리는 시간이다.
 
-    const void *srcAddr;
-    //time.year=2021;time.month=3;time.day=11;time.hour=12;time.minute=11;time.second=0;
-    //ds1338_write_time(&time);
-    ds1338_read_time(&time);
-    //Device_cal(); // copy the trim value for ADC
-    //ADC_setOFFSETTRIM();
-    //ADC_setINLTRIM();
     while(1)
     {
-        cheeck_ipc();
-        if(bufferFull ){
-            // FFT Memory Filled with valid data.
-            //request_fft
-            bufferFull = 0;
-            //srcAddr =(const void *)(adcAResults_1 + (int)(request_fft/5)*0x1000 + RESULTS_BUFFER_SIZE*(request_fft%5)  ) ;
-                 if(request_fft==0)srcAddr =(const void *)(adcAResults_1 );
-            else if(request_fft==1)srcAddr =(const void *)(adcAResults_2 );
-            else if(request_fft==2)srcAddr =(const void *)(adcAResults_3 );
-            else if(request_fft==3)srcAddr =(const void *)(adcAResults_4 );
-            else if(request_fft==4)srcAddr =(const void *)(adcAResults_5 );
-            else if(request_fft==5)srcAddr =(const void *)(adcAResults_6 );
-            else if(request_fft==6)srcAddr =(const void *)(adcAResults_7 );
-            else if(request_fft==7)srcAddr =(const void *)(adcAResults_8 );
-            else if(request_fft==8)srcAddr =(const void *)(adcAResults_9 );
-            else if(request_fft==9)srcAddr =(const void *)(adcAResults_10 );
-            else if(request_fft==10)srcAddr =(const void *)(adcAResults_11 );
-            else if(request_fft==11)srcAddr =(const void *)(adcAResults_12 );
-            else if(request_fft==12)srcAddr =(const void *)(adcAResults_13 );
-            else if(request_fft==13)srcAddr =(const void *)(adcAResults_14 );
-            else if(request_fft==14)srcAddr =(const void *)(adcAResults_15 );
-            else if(request_fft==15)srcAddr =(const void *)(adcAResults_16 );
-            else if(request_fft==16)srcAddr =(const void *)(adcAResults_17 );
-            else if(request_fft==17)srcAddr =(const void *)(adcAResults_18 );
-            else if(request_fft==18)srcAddr =(const void *)(adcAResults_19);
-            else if(request_fft==19)srcAddr =(const void *)(adcAResults_20 );
-
-            //HWREG(IPC_BASE + IPC_O_SET) = IPC_SET_IPC1;
-            // HWREGH(RAM_ADCBUFFER1 + (int)(request_fft/5)*0x1000 + RESULTS_BUFFER_SIZE*(request_fft%5) ) ;
-            if(((HWREG(IPC_BASE + IPC_O_STS)) & (1<<request_fft)) == 0U  ) // 메모리를 옭겨도 되면 옮긴다.
-            {
-                DMA_configAddresses(DMA_CH6_BASE,RFFTin1Buff , srcAddr);
-                switch(request_fft){
-                case 0: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC0; break;
-                case 1: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC1; break;
-                case 2: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC2; break;
-                case 3: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC3; break;
-                case 4: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC4; break;
-                case 5: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC5; break;
-                case 6: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC6; break;
-                case 7: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC7; break;
-                case 8: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC8; break;
-                case 9: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC9; break;
-                case 10: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC10; break;
-                case 11: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC11; break;
-                case 12: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC12; break;
-                case 13: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC13; break;
-                case 14: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC14; break;
-                case 15: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC15; break;
-                case 16: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC16; break;
-                case 17: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC17; break;
-                case 18: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC18; break;
-                case 19: HWREG(IPC_BASE + IPC_O_SET)=IPC_SET_IPC19; break;
-                }
-                //HWREG(IPC_BASE + IPC_O_SET) = (uint32_t)(1U<<request_fft);//IPC_SET_IPC1;현재 작업중인 포인트를 알려 준다.
-
-                DMA_enableTrigger(DMA_CH6_BASE);
-                DMA_startChannel(DMA_CH6_BASE);
-            }
-            else{
-                // Now This memory is used for anyone;
-                //__asm('NOP');
-                request_fft++;
-                request_fft--;
-                NOP;
-            }
-            request_fft++;// FFT data was Requested, And finished. It will be restart when receive valid request number again.
-            if(request_fft>20)request_fft=0;
-        }
-        if(dmaCopydone)// After bufferFull then excute fft_routine   68uS
+        cheeck_ipc();  // CPU2에서 IPC의 요청이 있는지를 확인한다.
+        if(dmaCopydone)// After memoryCopyComplete then excute fft_routine   68uS
         {
-
-            //HWREG(IPC_BASE + IPC_O_SET) = IPC_SET_IPC1;
-            //while((HWREG(IPC_BASE + IPC_O_STS) & IPC_STS_IPC1) == 0U)
-            DMA_disableTrigger(DMA_CH6_BASE);
-            fft_routine(); // <note_1> 105519  sysclk is need. fft routine test
-            dmaCopydone=0;
-            HWREG(IPC_BASE + IPC_O_CLR) = 0xFFFFFFFF; //작업이 끝났으므로 사용가능함을 알려준다.
+            // CPU2에서 사용하고 있지 않으면...
+           if(((HWREG(IPC_BASE + IPC_O_STS)) & (1UL << (request_fft+1))) == 0U  )
+           {
+                HWREG(IPC_BASE + IPC_O_SET)= 1UL << (request_fft+1);
+                fft_routine(); // <note_1> 105519  sysclk is need. fft routine test
+                //HWREG(IPC_BASE + IPC_O_CLR) = 0xFFFFFFFF; //작업이 끝났으므로 사용가능함을 알려준다.
+                HWREG(IPC_BASE + IPC_O_CLR) = 1UL << (request_fft+1);
+                request_fft++;// FFT data was Requested, And finished. It will be restart when receive valid request number again.
+                if(request_fft >= 20)request_fft=0;
+                dmaCopydone=0;
+           }
+           else{};//현재의 메모리를 CPU에서 사용하고 있는경우..
         }
     }
 }
@@ -634,7 +627,21 @@ __interrupt void adcA1ISR(void)  // note_2
     }
     else fail++;
     adc_index++;
-    // Set the bufferFull flag if the buffer is full
+    // Set the memoryCopyComplete flag if the buffer is full:w
+
+    int i;
+    if(!dmaCopydone ){
+        srcAddr = adcsrcAddr[request_fft];
+        uint16_t index;
+        index = adc_index;
+        for(i=0;i < 1024;i++){
+            if( index > RESULTS_BUFFER_SIZE ) index=0;
+            //메모리는 현재위치 다음데이타가 가장 마지막 데이타이다 이미 증가가 되어 있는 상태이다.
+            HWREGH(RFFTin1Buff+i) = HWREGH( (unsigned long)srcAddr + index++);
+        }
+        dmaCopydone  = 1;
+        //memoryCopyComplete=1;
+    }
     if(RESULTS_BUFFER_SIZE <= adc_index)
     {
         // write data to fft array.
@@ -643,7 +650,7 @@ __interrupt void adcA1ISR(void)  // note_2
         //for(adc_index=0;adc_index<RESULTS_BUFFER_SIZE ;adc_index++)
         //    RFFTin1Buff[adc_index] =  HWREGH(RAM_ADCBUFFER1 + (int)(request_fft/5)*0x1000 + RESULTS_BUFFER_SIZE*(request_fft%5) +adc_index) ;
         adc_index = 0;
-        bufferFull = 1;
+        //memoryCopyComplete = 1;
     }
     if (ToggleCount++ >= 15)
     {

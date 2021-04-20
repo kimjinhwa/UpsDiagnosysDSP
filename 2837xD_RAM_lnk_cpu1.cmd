@@ -86,7 +86,7 @@ SECTIONS
 
    ramgs0           : > RAMGS0,    PAGE = 1
    //ramgs1           : > RAMGS1,    PAGE = 1
-   RFFTdata1_test   : > RAMGS7 ,   PAGE = 1, ALIGN = RFFT_ALIGNMENT
+   RFFTdata1_test   : > RAMGS7 ,   PAGE = 1, ALIGN = RFFT_ALIGNMENT  // FOR  CPU2
    RFFTdata1        : > RAMGS8 ,   PAGE = 1, ALIGN = RFFT_ALIGNMENT
    RFFTdata2        : > RAMGS9 ,   PAGE = 1, ALIGN = RFFT_ALIGNMENT
    RFFTdata3        : > RAMGS9 ,   PAGE = 1, ALIGN = RFFT_ALIGNMENT

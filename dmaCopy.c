@@ -1,3 +1,4 @@
+/*
 #include "driverlib.h"
 #include "device.h"
 #include "DiagnosysUps.h"
@@ -51,20 +52,9 @@ void error(void)
 void initDMA()
 {
     DMA_initController();
-    //const void *destAddr;
-    //const void *srcAddr;
-    //srcAddr = (const void *)sData;
-    //destAddr = (const void *)rData;
-
-    //
-    // configure DMA CH6
-    //
-    //DMA_configAddresses(DMA_CH6_BASE, destAddr, srcAddr);
     DMA_configBurst(DMA_CH6_BASE,BURST,1,1);
     DMA_configTransfer(DMA_CH6_BASE,TRANSFER,1,1);
     DMA_configMode(DMA_CH6_BASE, DMA_TRIGGER_SOFTWARE, DMA_CFG_ONESHOT_ENABLE | DMA_CFG_CONTINUOUS_ENABLE );
-    //DMA_configMode(DMA_CH6_BASE,DMA_TRIGGER_SOFTWARE, DMA_CFG_ONESHOT_DISABLE);
-    DMA_configMode(DMA_CH5_BASE, DMA_TRIGGER_SOFTWARE, DMA_CFG_ONESHOT_ENABLE | DMA_CFG_CONTINUOUS_ENABLE );
     DMA_setInterruptMode(DMA_CH6_BASE,DMA_INT_AT_END);
     DMA_enableTrigger(DMA_CH6_BASE);
     DMA_enableInterrupt(DMA_CH6_BASE);
@@ -80,3 +70,4 @@ __interrupt void dmaCh6ISR(void)
     dmaCopydone = 1; // Test done.
     return;
 }
+*/
