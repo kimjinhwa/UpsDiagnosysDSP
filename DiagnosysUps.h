@@ -1,4 +1,4 @@
-#define ADC_SAMPLING_FREQ       8000.0L
+#define ADC_SAMPLING_FREQ       20000.0L
 
 #define RESULTS_BUFFER_SIZE     1024
 #define EX_ADC_RESOLUTION       12

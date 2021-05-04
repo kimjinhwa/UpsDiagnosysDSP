@@ -65,7 +65,7 @@ struct st_fft_result {
 };
 
 #pragma DATA_SECTION(fft_result,"PUTBUFFER")
-struct st_fft_result fft_result[20];
+struct st_fft_result fft_result[5][20];
 
 #pragma DATA_SECTION(time,"PUTBUFFER")
 struct rtctime_t time;
@@ -183,28 +183,46 @@ void fft_routine(void)
     RFFT_adc_f32(hnd_rfft_adc);        // Calculate real FFT with 12-bit
 
     RFFT_f32_mag(hnd_rfft);             //Calculate magnitude
-    j = 1;
-    freq = RFFTmagBuff[1];
-    i=2;
-    for(;i<RFFT_SIZE/2+1;i++){
-        //Looking for the maximum component of frequency spectrum
-        if(RFFTmagBuff[i] > freq){
-            j = i;
-            freq = RFFTmagBuff[i];
-        }
-    }
-    maxValue=RFFTmagBuff[j];
 
-    freq =(float)F_PER_SAMPLE * (float)j;
+    int nth=0;
+    for(nth=0;nth<5;nth++)
+    {
+            fft_result[nth][request_fft].THD=(float)0;
+            fft_result[nth][request_fft].freq=(float)0;
+            fft_result[nth][request_fft].maxValue=(float)0;
+    }
+
+    j = 1;  // j is maxValue position
+    freq = RFFTmagBuff[1];
+    i=2;   // i is the start position
+
+
+
+    for(nth=0;nth<5;nth++){
+        for(;i<RFFT_SIZE/2+1;i++){
+            //Looking for the maximum component of frequency spectrum
+            if(RFFTmagBuff[i] > freq){
+                j = i;
+                freq = RFFTmagBuff[i];
+            }
+        }
+        if(nth==0)maxValue=RFFTmagBuff[j];
+        fft_result[nth][request_fft].maxValue = RFFTmagBuff[j];
+        freq =(float)F_PER_SAMPLE * (float)j;
+        fft_result[nth][request_fft].freq = freq;
+        j++;
+        i = j; //최대값을 찾은 다음 부터 다시 시작한다.
+        freq = RFFTmagBuff[i];
+    }
+
     i=2;
-    for(;i<RFFT_SIZE/2+1;i++){
-       sumTotal+=RFFTmagBuff[i]*RFFTmagBuff[i];
+    //for(;i<RFFT_SIZE/2+1;i++){
+   for(;i<RFFT_SIZE/2;i++){
+       sumTotal += RFFTmagBuff[i]*RFFTmagBuff[i];
     }
     sumTotal=sqrt(sumTotal);
     float THD=sumTotal/maxValue;
-    fft_result[request_fft].THD = THD;
-    fft_result[request_fft].freq = freq;
-    fft_result[request_fft].maxValue = maxValue;
+    fft_result[0][request_fft].THD = THD;
 
     /*
     for(k=0;k<9;k++){
@@ -256,12 +274,6 @@ inline void initBuffer()
     }
 }
 
-__interrupt void pwmE3ISR(void)  // note_2
-{
-    //DMA_forceTrigger(DMA_CH6_BASE);
-    EPWM_clearEventTriggerInterruptFlag(EPWM3_BASE);
-    Interrupt_clearACKGroup(INTERRUPT_ACK_GROUP3);
-}
 __interrupt void cpuTimer0ISR(void)
 {
     cpuTimer0IntCount++;
@@ -333,12 +345,12 @@ void setupCpu2(){
 void cheeck_ipc()
 {
     //IPC 21번 시간요청
-    uint16_t pos=1;
     uint16_t i;
-    unsigned long value;
-    value = (HWREG(IPC_BASE + IPC_O_STS));
+    uint32_t value;
+    value = HWREG(IPC_BASE + IPC_O_STS );
+    //value = 1UL<<value;
     for(i=1;i<21;i++){
-         if(value &  (pos << i)) {
+         if(value &  (1UL << i)) {
              request_fft = i-1;  // 복사할 메모리 위치를 지정한다.
              dmaCopydone=0;  //이렇게 하면 인터럽트에서 메모리를 복사한다.
              while(dmaCopydone == 0){
@@ -347,8 +359,8 @@ void cheeck_ipc()
              //fft_routine();     // 현재 위치의 FFT를 수행한다.
              //fft는 기존의 것을 사용하자.
              //이 메모리는 안전하게 사용할 수 있는 원시 데이타가 된다.
-             HWREG(IPC_BASE + IPC_O_ACK) = 1UL << (request_fft +1) ; //CPU2에 데이타를 갖고 가도 좋다고 알려준다.
-             DEVICE_DELAY_US(20);// CPU2에서 데이타를 갖고 갈수 있는 시간을 준다. 데이타 갯수 = 5ns*((1024*2cycle) +4cycle)= 10240us
+             HWREG(IPC_BASE + IPC_O_ACK) = value;// 1UL << (request_fft +1) ; //CPU2에 데이타를 갖고 가도 좋다고 알려준다.
+             DEVICE_DELAY_US(30);// CPU2에서 데이타를 갖고 갈수 있는 시간을 준다. 데이타 갯수 = 5ns*((1024*2cycle) +4cycle)= 10240us
              dmaCopydone=0;  // 0으로 놓아야 다시 인터럽트에서 메모리에 복사를 시작한다.
              break;
          }
@@ -370,19 +382,39 @@ void cheeck_ipc()
 }
 const void *adcsrcAddr[20];
 const void *srcAddr;
+
+#include "F021_F2837xD_C28x.h"
+#define CPUCLK_FREQUENCY 200 /* 200 MHz System frequency */
+
+/*
+//#pragma CODE_SECTION(Example_CallFlashAPI, ramFuncSection);
+void Example_CallFlashAPI(void){
+    Fapi_StatusType oReturnCheck;
+    EALLOW;
+    oReturnCheck = Fapi_initializeAPI(F021_CPU0_BASE_ADDRESS,CPUCLK_FREQUENCY);
+    if(oReturnCheck != Fapi_Status_Success)
+    {
+        //Example_Error (oReturnCheck);
+    }
+}
+*/
 void main(void)
 {
     //EALLOW;
     //DevCfgRegs.CPUSEL5.bit.SCI_C=1;  //SCI_C to CPU 2
     //EDIS;
+
+    Device_init();
+   //
+
+
+    Device_initGPIO();
+
     adcsrcAddr[0] =(const void *)(adcAResults_1 ), adcsrcAddr[1] =(const void *)(adcAResults_2 ), adcsrcAddr[2] =(const void *)(adcAResults_3 ), adcsrcAddr[3] =(const void *)(adcAResults_4 ),
     adcsrcAddr[4] =(const void *)(adcAResults_5 ), adcsrcAddr[5] =(const void *)(adcAResults_6 ), adcsrcAddr[6] =(const void *)(adcAResults_7 ), adcsrcAddr[7] =(const void *)(adcAResults_8 ),
     adcsrcAddr[8] =(const void *)(adcAResults_9 ), adcsrcAddr[9] =(const void *)(adcAResults_10 ),adcsrcAddr[10] = (const void *)(adcAResults_11 ), adcsrcAddr[11] =(const void *)(adcAResults_12 ),
     adcsrcAddr[12] =(const void *)(adcAResults_13 ),adcsrcAddr[13] = (const void *)(adcAResults_14 ),adcsrcAddr[14] = (const void *)(adcAResults_15 ),adcsrcAddr[15] = (const void *)(adcAResults_16 ),
     adcsrcAddr[16] =(const void *)(adcAResults_17 ),adcsrcAddr[17] = (const void *)(adcAResults_18 ),adcsrcAddr[18] = (const void *)(adcAResults_19 ),adcsrcAddr[19] = (const void *)(adcAResults_20 );
-
-    Device_init();
-    Device_initGPIO();
 
     setupCpu2();
 
@@ -402,7 +434,6 @@ void main(void)
     init_timer0();
     Interrupt_register(INT_TIMER1, &cpuTimer0ISR);
     Interrupt_register(INT_ADCA1, &adcA1ISR);
-    Interrupt_register(INT_EPWM3, &pwmE3ISR);
 
 #ifdef DAC_TEST_USED
     setDacCI();
@@ -429,7 +460,6 @@ void main(void)
     Interrupt_enable(INT_ADCA1);
     Interrupt_enable(INT_TIMER1);
     Interrupt_enable(INT_EPWM2);
-    Interrupt_enable(INT_EPWM3);
     Interrupt_enable(INT_SCIB_RX);
     //Interrupt_enable(INT_SCIB_TX);
 
@@ -490,7 +520,7 @@ void initADC(void)
 void initEPWM(void)
 {
     //EPWM1_BASE
-EPWM_SignalParams pwmSignal =
+    EPWM_SignalParams pwmSignal =
             {ADC_SAMPLING_FREQ, 0.5f, 0.5f, true, DEVICE_SYSCLK_FREQ, SYSCTL_EPWMCLK_DIV_2,
              EPWM_COUNTER_MODE_DOWN, EPWM_CLOCK_DIVIDER_1,
             EPWM_HSCLOCK_DIVIDER_1};
@@ -499,17 +529,6 @@ EPWM_SignalParams pwmSignal =
     EPWM_setADCTriggerEventPrescale(EPWM1_BASE, EPWM_SOC_A, 1);
     EPWM_configureSignal(EPWM1_BASE, &pwmSignal);
 
-    EPWM_SignalParams pwmSignal_3 =
-            {4000000, 0.5f, 0.5f, true, DEVICE_SYSCLK_FREQ, SYSCTL_EPWMCLK_DIV_2,
-             EPWM_COUNTER_MODE_DOWN, EPWM_CLOCK_DIVIDER_1,
-            EPWM_HSCLOCK_DIVIDER_1};
-
-    EPWM_configureSignal(EPWM3_BASE, &pwmSignal_3);
-    EPWM_setInterruptSource(EPWM3_BASE , EPWM_INT_TBCTR_ZERO );
-    EPWM_setInterruptEventCount(EPWM3_BASE, 1U);
-    EPWM_enableInterrupt(EPWM3_BASE);
-    /*
-    */
 }
 
 // Function to configure ADCA's SOC0 to be triggered by ePWM1.
@@ -634,8 +653,8 @@ __interrupt void adcA1ISR(void)  // note_2
         srcAddr = adcsrcAddr[request_fft];
         uint16_t index;
         index = adc_index;
-        for(i=0;i < 1024;i++){
-            if( index > RESULTS_BUFFER_SIZE ) index=0;
+        for(i=0;i < RESULTS_BUFFER_SIZE;i++){
+            if( index >= RESULTS_BUFFER_SIZE ) index=0;
             //메모리는 현재위치 다음데이타가 가장 마지막 데이타이다 이미 증가가 되어 있는 상태이다.
             HWREGH(RFFTin1Buff+i) = HWREGH( (unsigned long)srcAddr + index++);
         }
@@ -644,12 +663,12 @@ __interrupt void adcA1ISR(void)  // note_2
     }
     if(RESULTS_BUFFER_SIZE <= adc_index)
     {
+        adc_index = 0;
         // write data to fft array.
         // if request_fft is set to 21 or above... This data do not write.
         // It takes 11309 cpu cycle.
         //for(adc_index=0;adc_index<RESULTS_BUFFER_SIZE ;adc_index++)
         //    RFFTin1Buff[adc_index] =  HWREGH(RAM_ADCBUFFER1 + (int)(request_fft/5)*0x1000 + RESULTS_BUFFER_SIZE*(request_fft%5) +adc_index) ;
-        adc_index = 0;
         //memoryCopyComplete = 1;
     }
     if (ToggleCount++ >= 15)

@@ -36,13 +36,24 @@
       (Type "COrSchematicDoc")
       (Frame
         (Placement "44 2 3 -1 -1 -8 -31 26 1388 26 614")
-        (Scroll "3844 2260")
-        (Zoom "256")
+        (Scroll "0 297")
+        (Zoom "110")
         (Occurrence "/"))
       (Path
          "E:\TI\WORKSPACEV1029\DIAGNOSYSUPS_CPU01\DOCUMENT\DIAGNOSTICSYSTEM_V1.DSN")
       (Schematic "SCHEMATIC1")
-      (Page "TMS320F28377D")))
+      (Page "TMS320F28377D"))
+    (Doc
+      (Type "COrSchematicDoc")
+      (Frame
+        (Placement "44 0 1 -1 -1 -8 -31 52 1418 52 644")
+        (Scroll "0 180")
+        (Zoom "99")
+        (Occurrence "/Ainput"))
+      (Path
+         "E:\TI\WORKSPACEV1029\DIAGNOSYSUPS_CPU01\DOCUMENT\DIAGNOSTICSYSTEM_V1.DSN")
+      (Schematic "Ainput")
+      (Page "Ainput")))
   (Folder "PSpice Resources"
     (Folder "Simulation Profiles")
     (Folder "Model Libraries"
