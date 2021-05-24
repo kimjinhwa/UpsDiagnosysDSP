@@ -15,6 +15,8 @@
 #include <uart/uart_D.h>
 #include <uart/uart_util.h>
 #include "ds1338z_Rtc.h"
+#include "cpuFlashMemory.h"
+
 // Defines
 #pragma DATA_SECTION(RFFTin1Buff,"RFFTdata1")
 uint16_t RFFTin1Buff[2*RFFT_SIZE];
@@ -58,11 +60,16 @@ float RFFTF32Coef[RFFT_SIZE];
 #pragma DATA_SECTION(adcAResults_19,"ADCBUFFER5")
 #pragma DATA_SECTION(adcAResults_20,"ADCBUFFER5")
 
+#define userFlashStart         0xBE000
+
 struct st_fft_result {
     float maxValue;
     float freq;
     float THD ;
 };
+
+#pragma  DATA_SECTION(offsetValue,"GETBUFFER")
+uint16_t offsetValue[24];
 
 #pragma DATA_SECTION(fft_result,"PUTBUFFER")
 struct st_fft_result fft_result[5][20];
@@ -378,13 +385,18 @@ void cheeck_ipc()
         HWREG(IPC_BASE + IPC_O_ACK) = IPC_ACK_IPC22;
         DEVICE_DELAY_US(20);
     }
+    if(  ((HWREG(IPC_BASE + IPC_O_STS)) & IPC_SET_IPC23) == IPC_SET_IPC23 )   // OFFSET값이 변경되었음을 알려 준다.
+    {
+        for(i=0;i<20;i++)HWREGH(userFlashStart+i)=offsetValue[i] ;
+        //CallFlashAPI(offsetValue,24);
+        HWREG(IPC_BASE + IPC_O_ACK) = IPC_ACK_IPC23;
+    }
 
 }
+
 const void *adcsrcAddr[20];
 const void *srcAddr;
 
-#include "F021_F2837xD_C28x.h"
-#define CPUCLK_FREQUENCY 200 /* 200 MHz System frequency */
 
 /*
 //#pragma CODE_SECTION(Example_CallFlashAPI, ramFuncSection);
@@ -398,6 +410,9 @@ void Example_CallFlashAPI(void){
     }
 }
 */
+//
+
+
 void main(void)
 {
     //EALLOW;
@@ -408,6 +423,7 @@ void main(void)
    //
 
 
+
     Device_initGPIO();
 
     adcsrcAddr[0] =(const void *)(adcAResults_1 ), adcsrcAddr[1] =(const void *)(adcAResults_2 ), adcsrcAddr[2] =(const void *)(adcAResults_3 ), adcsrcAddr[3] =(const void *)(adcAResults_4 ),
@@ -416,15 +432,23 @@ void main(void)
     adcsrcAddr[12] =(const void *)(adcAResults_13 ),adcsrcAddr[13] = (const void *)(adcAResults_14 ),adcsrcAddr[14] = (const void *)(adcAResults_15 ),adcsrcAddr[15] = (const void *)(adcAResults_16 ),
     adcsrcAddr[16] =(const void *)(adcAResults_17 ),adcsrcAddr[17] = (const void *)(adcAResults_18 ),adcsrcAddr[18] = (const void *)(adcAResults_19 ),adcsrcAddr[19] = (const void *)(adcAResults_20 );
 
+
+
     setupCpu2();
+
 
     initLocalGpio();
     Interrupt_initModule();
     Interrupt_initVectorTable();
 
 
+    //while(HWREG(IPC_BASE + IPC_O_FLG) & (IPC_FLG_IPC0 ) == IPC_FLG_IPC0 ) {};  // 요청된 처리가 완료 되기를 기다린다.
+
     I2caRegs.I2CCLKH = 0x00;
     request_fft=0;
+
+
+    //CallFlashAPI(offsetValue,24);
 
     fft_routine(); // <note_1> 105519  sysclk is need. fft routine test
 
@@ -452,6 +476,7 @@ void main(void)
     initI2CFIFO();
 
 
+
     //index = 0;
     //memoryCopyComplete = 0;
     //memoryRequestCopy=-1;
@@ -471,6 +496,7 @@ void main(void)
     Interrupt_enable(INT_I2CA_FIFO);
     //Interrupt_enable(INT_SCIC_TX);
 
+
     EINT;//enable inturrupt
     ERTM;//enable debug enable
     SysCtl_enablePeripheral(SYSCTL_PERIPH_CLK_TBCLKSYNC);
@@ -478,6 +504,8 @@ void main(void)
     DEVICE_DELAY_US(128000);// 125*1024 128us at 8Khz    128us
                               //한번의 ADC를 다 읽는데 걸리는 시간이다.
 
+    HWREG(IPC_BASE + IPC_O_SET) =  IPC_SET_IPC0;
+    //while(HWREG(IPC_BASE + IPC_O_FLG) & IPC_FLG_IPC0);
     while(1)
     {
         cheeck_ipc();  // CPU2에서 IPC의 요청이 있는지를 확인한다.
@@ -488,7 +516,6 @@ void main(void)
            {
                 HWREG(IPC_BASE + IPC_O_SET)= 1UL << (request_fft+1);
                 fft_routine(); // <note_1> 105519  sysclk is need. fft routine test
-                //HWREG(IPC_BASE + IPC_O_CLR) = 0xFFFFFFFF; //작업이 끝났으므로 사용가능함을 알려준다.
                 HWREG(IPC_BASE + IPC_O_CLR) = 1UL << (request_fft+1);
                 request_fft++;// FFT data was Requested, And finished. It will be restart when receive valid request number again.
                 if(request_fft >= 20)request_fft=0;
@@ -513,6 +540,24 @@ void initADC(void)
         ADC_setInterruptPulseMode(ADCA_BASE+xx, ADC_PULSE_END_OF_CONV); // Set pulse positions to late
         ADC_enableConverter(ADCA_BASE+xx); // Power up the ADC and then delay for 1 ms
     };
+
+    for(xx=0;xx<20;xx++) offsetValue[xx] = HWREGH(userFlashStart+xx);
+
+    //offsetValue
+    //signed int trimValue ;
+    //signed int Value ;
+
+    //    EALLOW;
+    //trimValue = 21;//HWREGH(userFlashStart) ;
+    //HWREGH(ADCA_BASE + ADC_O_OFFTRIM ) += 0x70;
+    //HWREGH(ADCA_BASE + ADC_O_OFFTRIM ) -=  120;//(trimValue*16)/4;
+    //Value += 0x70;
+    //Value = Value + (trimValue*16)/32;
+    //Value = Value/32;
+    //trimValue = trimValue -Value;
+    //HWREGH(ADCA_BASE + ADC_O_OFFTRIM ) = Value;
+    //EDIS;
+
     DEVICE_DELAY_US(1000);
 }
 
