@@ -153,6 +153,11 @@ void CallFlashAPI(uint16_t *Buffer,uint16_t len){
       }
 
       EDIS;
+
+      EALLOW;
+      FlashPumpSemaphoreRegs.PUMPREQUEST.all = 0x5a5a0000 | 0x0;
+      EDIS;
+
       Flash_setPumpPowerMode(FLASH0ECC_BASE,FLASH_PUMP_PWR_SLEEP);
       //(*((volatile uint16_t *)((uintptr_t)(x))))
       int16_t value;

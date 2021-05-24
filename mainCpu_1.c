@@ -388,7 +388,9 @@ void cheeck_ipc()
     if(  ((HWREG(IPC_BASE + IPC_O_STS)) & IPC_SET_IPC23) == IPC_SET_IPC23 )   // OFFSET값이 변경되었음을 알려 준다.
     {
         for(i=0;i<20;i++)HWREGH(userFlashStart+i)=offsetValue[i] ;
-        //CallFlashAPI(offsetValue,24);
+        DINT;
+        CallFlashAPI(offsetValue,24);
+        EINT;
         HWREG(IPC_BASE + IPC_O_ACK) = IPC_ACK_IPC23;
     }
 
