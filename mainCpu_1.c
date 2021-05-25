@@ -414,7 +414,7 @@ void Example_CallFlashAPI(void){
 */
 //
 
-
+#include "ipc.h"
 void main(void)
 {
     //EALLOW;
@@ -438,6 +438,11 @@ void main(void)
 
     setupCpu2();
 
+    //while(IpcRegs.IPCBOOTSTS !=  C2_BOOTROM_BOOTSTS_SYSTEM_READY ) ;
+    //IpcRegs.IPCBOOTMODE = C1C2_BROM_BOOTMODE_BOOT_FROM_FLASH;
+    //IpcRegs.IPCSENDCOM  = BROM_IPC_EXECUTE_BOOTMODE_CMD;
+    //IpcRegs.IPCSET.all = (IPC_FLAG0 | IPC_FLAG31);
+
 
     initLocalGpio();
     Interrupt_initModule();
@@ -449,6 +454,7 @@ void main(void)
     I2caRegs.I2CCLKH = 0x00;
     request_fft=0;
 
+    Device_bootCPU2(C1C2_BROM_BOOTMODE_BOOT_FROM_FLASH);
 
     //CallFlashAPI(offsetValue,24);
 
@@ -506,7 +512,7 @@ void main(void)
     DEVICE_DELAY_US(128000);// 125*1024 128us at 8Khz    128us
                               //한번의 ADC를 다 읽는데 걸리는 시간이다.
 
-    HWREG(IPC_BASE + IPC_O_SET) =  IPC_SET_IPC0;
+    //HWREG(IPC_BASE + IPC_O_SET) =  IPC_SET_IPC0;
     //while(HWREG(IPC_BASE + IPC_O_FLG) & IPC_FLG_IPC0);
     while(1)
     {
