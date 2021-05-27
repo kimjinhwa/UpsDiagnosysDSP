@@ -16,5 +16,5 @@
 #define userFlashStart         0xBE000
 #define userFlashLenght         0x100
 
-void CallFlashAPI(uint16_t *Buffer,uint16_t len);
+void CallFlashAPI(uint32_t flashAddress, uint16_t *Buffer,uint16_t len);
 #endif /* CPUFLASHMEMORY_H_ */

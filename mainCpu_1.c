@@ -61,6 +61,9 @@ float RFFTF32Coef[RFFT_SIZE];
 #pragma DATA_SECTION(adcAResults_20,"ADCBUFFER5")
 
 #define userFlashStart         0xBE000
+// 00 01 Reading Frequency
+#define SystemInitFlash         0xBE000+24
+
 
 struct st_fft_result {
     float maxValue;
@@ -354,10 +357,44 @@ void cheeck_ipc()
     //IPC 21번 시간요청
     uint16_t i;
     uint32_t value;
-    value = HWREG(IPC_BASE + IPC_O_STS );
+    uint32_t command;
+    uint32_t data;
+    uint16_t flashInitValue[8];// [0] store frequency High 16bit
+                               // [1] store Frequency Low 16Bit
+    for(i=0;i<8;i++)flashInitValue[i]= 0x00;
     //value = 1UL<<value;
+    if(  ((HWREG(IPC_BASE + IPC_O_STS)) & IPC_SET_IPC30) == IPC_SET_IPC30 )   // CPU2에서 뭔가를 요청한다.
+    {
+        //IPCRECVCMD
+        //IPCRECVDATA
+        //IPCRECVDADDR
+        //IPCLOCALREPLY
+        // CMD에 1의 값이 실려 오면 읽는 주파수를 변경하라는 메세지 이며 DATA에서  값을 취한다.
+        // IPCRECVDATA에 유효한 값이 실려 오면 이 값으로 설정한다.
+        // IPCLOCALREPLY에는 설정후 결과값을 리턴한다.
+        //최종적으로 ACK를 보내서 Local의 Status를 Clear하며 Remote의 Flag를 Clear한다.
+        command = HWREG(IPC_BASE +  IPC_O_RECVCOM)  ;
+        if(command==1)
+        {
+            data = HWREG(IPC_BASE +  IPC_O_RECVDATA)  ;
+            //여기서 필요한 펑션을 수행한다.
+            flashInitValue[0] = (uint16_t)(data & 0x0000FFFF );
+            flashInitValue[1] = data >> 16;
+            if(data>0){
+                DINT;
+                CallFlashAPI(userFlashStart+24,flashInitValue,8);
+                EINT;
+                //initEPWM();
+            }
+            data = HWREG(userFlashStart+24);
+            HWREG(IPC_BASE +  IPC_O_LOCALREPLY) = data  ;//SystemInitFlash
+            HWREG(IPC_BASE +  IPC_O_ACK) = IPC_SET_IPC30  ;
+        }
+    }
+    value = HWREG(IPC_BASE + IPC_O_STS );
     for(i=1;i<21;i++){
-         if(value &  (1UL << i)) {
+         if(value &  (1UL << i))
+         {
              request_fft = i-1;  // 복사할 메모리 위치를 지정한다.
              dmaCopydone=0;  //이렇게 하면 인터럽트에서 메모리를 복사한다.
              while(dmaCopydone == 0){
@@ -377,7 +414,7 @@ void cheeck_ipc()
         ds1338_read_time(&time);
         HWREG(IPC_BASE + IPC_O_ACK) = IPC_ACK_IPC21;
     }
-    if(  ((HWREG(IPC_BASE + IPC_O_STS)) & IPC_SET_IPC22) == IPC_SET_IPC22 )   // 시간을 메모리에 옮겨 달라는 요청을 받으면 ...
+    if(  ((HWREG(IPC_BASE + IPC_O_STS)) & IPC_SET_IPC22) == IPC_SET_IPC22 )
     {
         //FFT메모리를 읽기 위함이다.
         //FFT가 수행되지 않는 상태에서 읽으면 되니까.
@@ -389,7 +426,7 @@ void cheeck_ipc()
     {
         for(i=0;i<20;i++)HWREGH(userFlashStart+i)=offsetValue[i] ;
         DINT;
-        CallFlashAPI(offsetValue,24);
+        CallFlashAPI(userFlashStart,offsetValue,24);
         EINT;
         HWREG(IPC_BASE + IPC_O_ACK) = IPC_ACK_IPC23;
     }
@@ -414,7 +451,6 @@ void Example_CallFlashAPI(void){
 */
 //
 
-#include "ipc.h"
 void main(void)
 {
     //EALLOW;
@@ -448,13 +484,15 @@ void main(void)
     Interrupt_initModule();
     Interrupt_initVectorTable();
 
-
-    //while(HWREG(IPC_BASE + IPC_O_FLG) & (IPC_FLG_IPC0 ) == IPC_FLG_IPC0 ) {};  // 요청된 처리가 완료 되기를 기다린다.
-
     I2caRegs.I2CCLKH = 0x00;
     request_fft=0;
-
+#ifdef _STANDALONE
+#ifdef _FLASH
     Device_bootCPU2(C1C2_BROM_BOOTMODE_BOOT_FROM_FLASH);
+#else
+    Device_bootCPU2(C1C2_BROM_BOOTMODE_BOOT_FROM_RAM);
+#endif //_FLASH
+#endif //_STANDALONE
 
     //CallFlashAPI(offsetValue,24);
 
@@ -512,8 +550,6 @@ void main(void)
     DEVICE_DELAY_US(128000);// 125*1024 128us at 8Khz    128us
                               //한번의 ADC를 다 읽는데 걸리는 시간이다.
 
-    //HWREG(IPC_BASE + IPC_O_SET) =  IPC_SET_IPC0;
-    //while(HWREG(IPC_BASE + IPC_O_FLG) & IPC_FLG_IPC0);
     while(1)
     {
         cheeck_ipc();  // CPU2에서 IPC의 요청이 있는지를 확인한다.
@@ -572,9 +608,16 @@ void initADC(void)
 // Function to configure ePWM1 to generate the SOC.
 void initEPWM(void)
 {
+    float32_t frequency;
+    frequency= (float32_t) HWREG(userFlashStart+24);
+    if(frequency > 0  && frequency < 2000000 ) frequency = frequency;
+    //else freq = ADC_SAMPLING_FREQ;
+    else frequency= 80000;
+
     //EPWM1_BASE
+
     EPWM_SignalParams pwmSignal =
-            {ADC_SAMPLING_FREQ, 0.5f, 0.5f, true, DEVICE_SYSCLK_FREQ, SYSCTL_EPWMCLK_DIV_2,
+            {frequency, 0.5f, 0.5f, true, DEVICE_SYSCLK_FREQ, SYSCTL_EPWMCLK_DIV_2,
              EPWM_COUNTER_MODE_DOWN, EPWM_CLOCK_DIVIDER_1,
             EPWM_HSCLOCK_DIVIDER_1};
     SysCtl_disablePeripheral(SYSCTL_PERIPH_CLK_TBCLKSYNC);

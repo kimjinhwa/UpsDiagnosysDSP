@@ -35,7 +35,7 @@
 <stringAttribute key="com.ti.ccstudio.debug.debugModel.ATTR_PROJECT.TMS320F28377D.ccxml.Texas Instruments XDS2xx USB Debug Probe_0/C28xx_CPU1" value="DiagnosysUps_CPU01"/>
 <stringAttribute key="com.ti.ccstudio.debug.debugModel.ATTR_PROJECT.TMS320F28377D.ccxml.Texas Instruments XDS2xx USB Debug Probe_0/C28xx_CPU2" value="DiagnosysUps_CPU01"/>
 <stringAttribute key="com.ti.ccstudio.debug.debugModel.ATTR_TARGET_CONFIG" value="${target_config_active_default:DiagnosysUps_CPU01}"/>
-<stringAttribute key="com.ti.ccstudio.debug.debugModel.MRU_PROGRAM.TMS320F28377D.ccxml.Texas Instruments XDS2xx USB Debug Probe_0/C28xx_CPU1" value="E:\ti\workspaceV1029\DiagnosysUps_CPU01\CPU1_FLASH\DiagnosysUps_CPU01.out"/>
+<stringAttribute key="com.ti.ccstudio.debug.debugModel.MRU_PROGRAM.TMS320F28377D.ccxml.Texas Instruments XDS2xx USB Debug Probe_0/C28xx_CPU1" value="E:\ti\workspaceV1029\DiagnosysUps_CPU01\CPU1_STANDALONE\DiagnosysUps_CPU01.out"/>
 <stringAttribute key="com.ti.ccstudio.debug.debugModel.MRU_PROGRAM.TMS320F28377D.ccxml.Texas Instruments XDS2xx USB Debug Probe_0/C28xx_CPU2" value="E:\ti\workspaceV1029\DiagnosysUps_CPU02\CPU2_FLASH\DiagnosysUps_CPU02.out"/>
 <listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_PATHS">
 <listEntry value="/DiagnosysUps_CPU01"/>
