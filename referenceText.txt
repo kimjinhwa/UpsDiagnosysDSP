@@ -121,3 +121,16 @@
     }
     */
     
+/*
+//#pragma CODE_SECTION(Example_CallFlashAPI, ramFuncSection);
+void Example_CallFlashAPI(void){
+    Fapi_StatusType oReturnCheck;
+    EALLOW;
+    oReturnCheck = Fapi_initializeAPI(F021_CPU0_BASE_ADDRESS,CPUCLK_FREQUENCY);
+    if(oReturnCheck != Fapi_Status_Success)
+    {
+        //Example_Error (oReturnCheck);
+    }
+}
+*/
+//

@@ -9,14 +9,13 @@
 #include "fpu_rfft.h"            // Main include file
 #include "math.h"
 #include "DiagnosysUps.h"
-//#include "dmaCopy.h"
 #include <uart/uart485_B.h>
 #include <uart/uart_C.h>
 #include <uart/uart_D.h>
 #include <uart/uart_util.h>
 #include "ds1338z_Rtc.h"
 #include "cpuFlashMemory.h"
-
+//#include "dmaCopy.h"
 // Defines
 #pragma DATA_SECTION(RFFTin1Buff,"RFFTdata1")
 uint16_t RFFTin1Buff[2*RFFT_SIZE];
@@ -28,13 +27,9 @@ float RFFTmagBuff[RFFT_SIZE/2+1];
 #pragma DATA_SECTION(RFFToutBuff,"RFFTdata3")
 float RFFToutBuff[RFFT_SIZE];
 
-#ifdef __cplusplus
-#pragma DATA_SECTION("RFFTdata4")
-#else
 #pragma DATA_SECTION(RFFTF32Coef,"RFFTdata4")
-#endif //__cplusplus
 float RFFTF32Coef[RFFT_SIZE];
-//
+
 #pragma DATA_SECTION(adcAResults_1,"ADCBUFFER1")
 #pragma DATA_SECTION(adcAResults_2,"ADCBUFFER1")
 #pragma DATA_SECTION(adcAResults_3,"ADCBUFFER1")
@@ -61,7 +56,11 @@ float RFFTF32Coef[RFFT_SIZE];
 #pragma DATA_SECTION(adcAResults_20,"ADCBUFFER5")
 
 #define userFlashStart         0xBE000
-// 00 01 Reading Frequency
+
+// Save PWM Frequency For ADC Period.
+// Saved 4byte, 00 01 Reading Frequency
+// for example at 80,0000
+// 00 -> 0x3880 01-> 0x0001
 #define SystemInitFlash         0xBE000+24
 
 
@@ -136,12 +135,12 @@ RFFT_F32_STRUCT rfft;
 RFFT_F32_STRUCT_Handle hnd_rfft = &rfft;
 
 uint16_t pass = 0;
-uint16_t fail = 0;
-static uint16_t dmaCopydone;
-// Main routine
+uint16_t fail = 0;  // Adc Fail Count. Not used
+static uint16_t isMemCpyDoneFFT;// When this is set, Interrupt routine copy next data for fftroutine.
+
 uint16_t adc_index;                              // Index into result buffer
-//volatile uint16_t memoryCopyComplete;                // Flag to indicate buffer is full
-//volatile int16_t memoryRequestCopy;                // Flag to indicate buffer is full
+
+
 
 void initADC(void);
 void initEPWM(void);
@@ -149,6 +148,7 @@ void initADCSOC(void);
 void fft_routine(void);
 __interrupt void adcA1ISR(void);
 __interrupt void pwmE3ISR(void);
+
 //! <table>
 //! <caption id="multi_row">Performance Data</caption>
 //! <tr><th> Samples <th> Cycles
@@ -158,10 +158,11 @@ __interrupt void pwmE3ISR(void);
 //! <tr><td> 512     <td> 13360  * 5ns -> 66800ns ->66us
 //! <tr><td> 1024    <td> 29466
 //! </table>
-uint32_t ToggleCount = 0;
-const void *adcsrcAddr[20];
-const void *srcAddr;
-static float32_t pwmFrequency;
+uint32_t ToggleCount = 0;  //For LED Status Toggle
+const void *adcsrcAddr[20];  // Contain Adcbuffer address
+const void *srcAddr;         //
+static float32_t pwmFrequency;  //Adc Reading Frequency.
+                                //This value is defined dafault, And can modified from CLI at CPU2
 
 void fft_routine(void)
 {
@@ -395,13 +396,14 @@ void cheeck_ipc()
         else if(command==2)
         {
             request_fft =data;// 인터럽트루틴에게 복사할 버퍼의 위치를 알려 준다.
-            dmaCopydone=0;  //이렇게 하면 인터럽트에서 메모리를 복사한다.
+            isMemCpyDoneFFT=0;  //이렇게 하면 인터럽트에서 메모리를 복사한다.
             while(!response )
             {
-                response= dmaCopydone;
+                response= isMemCpyDoneFFT;
                 SysCtl_delay(1);
             }
-            HWREG(IPC_BASE +  IPC_O_SENDDATA) = ToggleCount ;//adc_index;// request_fft;//HWREGH( (unsigned long)srcAddr + index++);//100  ;
+            HWREG(IPC_BASE +  IPC_O_SENDDATA) = ToggleCount ; //use Test Print
+                                                                //adc_index;// request_fft;//HWREGH( (unsigned long)srcAddr + index++);//100  ;
             HWREG(IPC_BASE +  IPC_O_ACK) = IPC_SET_IPC30  ;
             DEVICE_DELAY_US(30);// CPU2에서 데이타를 갖고 갈수 있는 시간을 준다. 데이타 갯수 = 5ns*((1024*2cycle) +4cycle)=
         }
@@ -433,31 +435,9 @@ void cheeck_ipc()
 
 
 
-/*
-//#pragma CODE_SECTION(Example_CallFlashAPI, ramFuncSection);
-void Example_CallFlashAPI(void){
-    Fapi_StatusType oReturnCheck;
-    EALLOW;
-    oReturnCheck = Fapi_initializeAPI(F021_CPU0_BASE_ADDRESS,CPUCLK_FREQUENCY);
-    if(oReturnCheck != Fapi_Status_Success)
-    {
-        //Example_Error (oReturnCheck);
-    }
-}
-*/
-//
-
 void main(void)
 {
-    //EALLOW;
-    //DevCfgRegs.CPUSEL5.bit.SCI_C=1;  //SCI_C to CPU 2
-    //EDIS;
-
     Device_init();
-   //
-
-
-
     Device_initGPIO();
 
     adcsrcAddr[0] =(const void *)(adcAResults_1 ), adcsrcAddr[1] =(const void *)(adcAResults_2 ), adcsrcAddr[2] =(const void *)(adcAResults_3 ), adcsrcAddr[3] =(const void *)(adcAResults_4 ),
@@ -469,12 +449,6 @@ void main(void)
 
 
     setupCpu2();
-
-    //while(IpcRegs.IPCBOOTSTS !=  C2_BOOTROM_BOOTSTS_SYSTEM_READY ) ;
-    //IpcRegs.IPCBOOTMODE = C1C2_BROM_BOOTMODE_BOOT_FROM_FLASH;
-    //IpcRegs.IPCSENDCOM  = BROM_IPC_EXECUTE_BOOTMODE_CMD;
-    //IpcRegs.IPCSET.all = (IPC_FLAG0 | IPC_FLAG31);
-
 
     initLocalGpio();
     Interrupt_initModule();
@@ -495,12 +469,10 @@ void main(void)
     //Device_bootCPU2(C1C2_BROM_BOOTMODE_BOOT_FROM_RAM);
 #endif
 #endif //_STANDALONE
-    //CallFlashAPI(offsetValue,24);
 
     fft_routine(); // <note_1> 105519  sysclk is need. fft routine test
 
     initBuffer();
-    //index=0;
 
     init_timer0();
     Interrupt_register(INT_TIMER1, &cpuTimer0ISR);
@@ -509,7 +481,6 @@ void main(void)
 #ifdef DAC_TEST_USED
     setDacCI();
 #endif
-    //initSCICFIFO(); //이 부분은 CPU2에서 관장 하기로 한다.
 
     initSCIDFIFO();
     initSCIBFIFO();
@@ -518,15 +489,12 @@ void main(void)
     initEPWM();
 
     initADCSOC();
+    //Not use Dma copy...
     //initDmaCopy();
 
     initI2CFIFO();
 
-
-
-    //memoryCopyComplete = 0;
-    //memoryRequestCopy=-1;
-    dmaCopydone =0;
+    isMemCpyDoneFFT =0; // It is used for
 
     Interrupt_enable(INT_ADCA1);
     Interrupt_enable(INT_TIMER1);
@@ -554,7 +522,7 @@ void main(void)
     while(1)
     {
         cheeck_ipc();  // CPU2에서 IPC의 요청이 있는지를 확인한다.
-        if(dmaCopydone)// After memoryCopyComplete then excute fft_routine   68uS
+        if(isMemCpyDoneFFT)// After memoryCopyComplete then excute fft_routine   68uS
         {
             // CPU2에서 사용하고 있지 않으면...
            if(((HWREG(IPC_BASE + IPC_O_STS)) & (1UL << (request_fft+1))) == 0U  )
@@ -564,7 +532,7 @@ void main(void)
                 HWREG(IPC_BASE + IPC_O_CLR) = 1UL << (request_fft+1);
                 request_fft++;// FFT data was Requested, And finished. It will be restart when receive valid request number again.
                 if(request_fft >= 20)request_fft=0;
-                dmaCopydone=0;
+                isMemCpyDoneFFT=0;
            }
            else{};//현재의 메모리를 CPU에서 사용하고 있는경우..
         }
@@ -746,7 +714,7 @@ __interrupt void adcA1ISR(void)  // note_2
     // Set the memoryCopyComplete flag if the buffer is full:w
 
     int i;
-    if(!dmaCopydone ){
+    if(!isMemCpyDoneFFT ){
         srcAddr = adcsrcAddr[request_fft];
         uint16_t index;
         index = adc_index;
@@ -755,7 +723,7 @@ __interrupt void adcA1ISR(void)  // note_2
             //메모리는 현재위치 다음데이타가 가장 마지막 데이타이다 이미 증가가 되어 있는 상태이다.
             HWREGH(RFFTin1Buff+i) = HWREGH( (unsigned long)srcAddr + index++);
         }
-        dmaCopydone  = 1;
+        isMemCpyDoneFFT  = 1;
         //memoryCopyComplete=1;
     }
     if(RESULTS_BUFFER_SIZE <= adc_index)
