@@ -137,7 +137,7 @@ RFFT_F32_STRUCT_Handle hnd_rfft = &rfft;
 
 uint16_t pass = 0;
 uint16_t fail = 0;
-
+static uint16_t dmaCopydone;
 // Main routine
 uint16_t adc_index;                              // Index into result buffer
 //volatile uint16_t memoryCopyComplete;                // Flag to indicate buffer is full
@@ -158,20 +158,17 @@ __interrupt void pwmE3ISR(void);
 //! <tr><td> 512     <td> 13360  * 5ns -> 66800ns ->66us
 //! <tr><td> 1024    <td> 29466
 //! </table>
-uint16_t ToggleCount = 0;
+uint32_t ToggleCount = 0;
+const void *adcsrcAddr[20];
+const void *srcAddr;
+static float32_t pwmFrequency;
+
 void fft_routine(void)
 {
-    //uint16_t index;                              // Index into result buffer
     float sumTotal=0.0;
     float maxValue=0.0;
     float freq = 0.0;
     uint16_t i, j;
-    /*
-    for(index = 0; index < 2*RFFT_SIZE; index++)
-    {
-        RFFTin1Buff[index] = RFFTin1Buff_test[index];
-    }
-    */
 
     //float calThd[9];
     hnd_rfft_adc->Tail = &(hnd_rfft->OutBuf);
@@ -287,7 +284,12 @@ inline void initBuffer()
 __interrupt void cpuTimer0ISR(void)
 {
     cpuTimer0IntCount++;
-    GPIO_togglePin(BLINKY_LED_GPIO );
+    if(cpuTimer0IntCount > 5)
+    {
+        cpuTimer0IntCount =0;
+        GPIO_togglePin(BLINKY_LED_GPIO );
+    }
+
     Interrupt_clearACKGroup(INTERRUPT_ACK_GROUP1);
 }
 void init_timer0()
@@ -313,7 +315,6 @@ void init_timer0()
     //elespedTime_b = CpuTimer0Regs.TIM.all;
 
 //
-uint16_t dmaCopydone;
 void setupCpu2(){
     SysCtl_selectCPUForPeripheral(SYSCTL_CPUSEL5_SCI,3,SYSCTL_CPUSEL_CPU2);//SCI_C is 3
     GPIO_setPinConfig(GPIO_90_SCIRXDC);
@@ -356,13 +357,15 @@ void cheeck_ipc()
 {
     //IPC 21번 시간요청
     uint16_t i;
-    uint32_t value;
+    uint16_t response=0;
+    //uint32_t value;
     uint32_t command;
     uint32_t data;
     uint16_t flashInitValue[8];// [0] store frequency High 16bit
                                // [1] store Frequency Low 16Bit
     for(i=0;i<8;i++)flashInitValue[i]= 0x00;
-    //value = 1UL<<value;
+    command = HWREG(IPC_BASE +  IPC_O_RECVCOM)  ;
+    data = HWREG(IPC_BASE +  IPC_O_RECVDATA)  ;
     if(  ((HWREG(IPC_BASE + IPC_O_STS)) & IPC_SET_IPC30) == IPC_SET_IPC30 )   // CPU2에서 뭔가를 요청한다.
     {
         //IPCRECVCMD
@@ -373,7 +376,6 @@ void cheeck_ipc()
         // IPCRECVDATA에 유효한 값이 실려 오면 이 값으로 설정한다.
         // IPCLOCALREPLY에는 설정후 결과값을 리턴한다.
         //최종적으로 ACK를 보내서 Local의 Status를 Clear하며 Remote의 Flag를 Clear한다.
-        command = HWREG(IPC_BASE +  IPC_O_RECVCOM)  ;
         if(command==1)
         {
             data = HWREG(IPC_BASE +  IPC_O_RECVDATA)  ;
@@ -390,25 +392,21 @@ void cheeck_ipc()
             HWREG(IPC_BASE +  IPC_O_LOCALREPLY) = data  ;//SystemInitFlash
             HWREG(IPC_BASE +  IPC_O_ACK) = IPC_SET_IPC30  ;
         }
+        else if(command==2)
+        {
+            request_fft =data;// 인터럽트루틴에게 복사할 버퍼의 위치를 알려 준다.
+            dmaCopydone=0;  //이렇게 하면 인터럽트에서 메모리를 복사한다.
+            while(!response )
+            {
+                response= dmaCopydone;
+                SysCtl_delay(1);
+            }
+            HWREG(IPC_BASE +  IPC_O_SENDDATA) = ToggleCount ;//adc_index;// request_fft;//HWREGH( (unsigned long)srcAddr + index++);//100  ;
+            HWREG(IPC_BASE +  IPC_O_ACK) = IPC_SET_IPC30  ;
+            DEVICE_DELAY_US(30);// CPU2에서 데이타를 갖고 갈수 있는 시간을 준다. 데이타 갯수 = 5ns*((1024*2cycle) +4cycle)=
+        }
     }
-    value = HWREG(IPC_BASE + IPC_O_STS );
-    for(i=1;i<21;i++){
-         if(value &  (1UL << i))
-         {
-             request_fft = i-1;  // 복사할 메모리 위치를 지정한다.
-             dmaCopydone=0;  //이렇게 하면 인터럽트에서 메모리를 복사한다.
-             while(dmaCopydone == 0){
-                 DEVICE_DELAY_US(1);    //이제 메모리 복사가 끟났다.  dmaCopydone  는 1로 셋팅되었다.
-             }
-             //fft_routine();     // 현재 위치의 FFT를 수행한다.
-             //fft는 기존의 것을 사용하자.
-             //이 메모리는 안전하게 사용할 수 있는 원시 데이타가 된다.
-             HWREG(IPC_BASE + IPC_O_ACK) = value;// 1UL << (request_fft +1) ; //CPU2에 데이타를 갖고 가도 좋다고 알려준다.
-             DEVICE_DELAY_US(30);// CPU2에서 데이타를 갖고 갈수 있는 시간을 준다. 데이타 갯수 = 5ns*((1024*2cycle) +4cycle)= 10240us
-             dmaCopydone=0;  // 0으로 놓아야 다시 인터럽트에서 메모리에 복사를 시작한다.
-             break;
-         }
-    }
+
     if(  ((HWREG(IPC_BASE + IPC_O_STS)) & IPC_SET_IPC21) == IPC_SET_IPC21 )   // 시간을 메모리에 옮겨 달라는 요청을 받으면 ...
     {
         ds1338_read_time(&time);
@@ -433,8 +431,6 @@ void cheeck_ipc()
 
 }
 
-const void *adcsrcAddr[20];
-const void *srcAddr;
 
 
 /*
@@ -486,14 +482,19 @@ void main(void)
 
     I2caRegs.I2CCLKH = 0x00;
     request_fft=0;
+
+
 #ifdef _STANDALONE
 #ifdef _FLASH
     Device_bootCPU2(C1C2_BROM_BOOTMODE_BOOT_FROM_FLASH);
 #else
     Device_bootCPU2(C1C2_BROM_BOOTMODE_BOOT_FROM_RAM);
 #endif //_FLASH
+#else // _STANDALONE
+#ifdef _FLASH
+    //Device_bootCPU2(C1C2_BROM_BOOTMODE_BOOT_FROM_RAM);
+#endif
 #endif //_STANDALONE
-
     //CallFlashAPI(offsetValue,24);
 
     fft_routine(); // <note_1> 105519  sysclk is need. fft routine test
@@ -523,7 +524,6 @@ void main(void)
 
 
 
-    //index = 0;
     //memoryCopyComplete = 0;
     //memoryRequestCopy=-1;
     dmaCopydone =0;
@@ -549,6 +549,7 @@ void main(void)
     EPWM_enableADCTrigger(EPWM1_BASE, EPWM_SOC_A);
     DEVICE_DELAY_US(128000);// 125*1024 128us at 8Khz    128us
                               //한번의 ADC를 다 읽는데 걸리는 시간이다.
+
 
     while(1)
     {
@@ -608,16 +609,15 @@ void initADC(void)
 // Function to configure ePWM1 to generate the SOC.
 void initEPWM(void)
 {
-    float32_t frequency;
-    frequency= (float32_t) HWREG(userFlashStart+24);
-    if(frequency > 0  && frequency < 2000000 ) frequency = frequency;
+    pwmFrequency= (float32_t) HWREG(userFlashStart+24);
+    if(pwmFrequency > 0  && pwmFrequency < 2000000 ) pwmFrequency = pwmFrequency;
     //else freq = ADC_SAMPLING_FREQ;
-    else frequency= 80000;
+    else pwmFrequency= 80000;
 
     //EPWM1_BASE
 
     EPWM_SignalParams pwmSignal =
-            {frequency, 0.5f, 0.5f, true, DEVICE_SYSCLK_FREQ, SYSCTL_EPWMCLK_DIV_2,
+            {pwmFrequency, 0.5f, 0.5f, true, DEVICE_SYSCLK_FREQ, SYSCTL_EPWMCLK_DIV_2,
              EPWM_COUNTER_MODE_DOWN, EPWM_CLOCK_DIVIDER_1,
             EPWM_HSCLOCK_DIVIDER_1};
     SysCtl_disablePeripheral(SYSCTL_PERIPH_CLK_TBCLKSYNC);
@@ -709,6 +709,7 @@ void initADCSOC(void)
 __interrupt void adcA1ISR(void)  // note_2
 {
     GPIO_togglePin(PULSE_OUTPUT_GPIO );
+    ToggleCount++;
     if( ADC_getInterruptStatus(ADCA_BASE,ADC_INT_NUMBER1)){
         adcAResults_1[adc_index] = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER0);
         adcAResults_2[adc_index] = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER1);
@@ -767,9 +768,10 @@ __interrupt void adcA1ISR(void)  // note_2
         //    RFFTin1Buff[adc_index] =  HWREGH(RAM_ADCBUFFER1 + (int)(request_fft/5)*0x1000 + RESULTS_BUFFER_SIZE*(request_fft%5) +adc_index) ;
         //memoryCopyComplete = 1;
     }
-    if (ToggleCount++ >= 15)
+    if (ToggleCount >= pwmFrequency/2)
     {
-        //GPIO_togglePin(PULSE_OUTPUT_GPIO );
+        GPIO_togglePin(PULSE_OUTPUT_GPIO );
+        GPIO_togglePin(BLINKY_LED_GPIO );
         ToggleCount = 0;
     }
 
