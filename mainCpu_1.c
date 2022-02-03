@@ -144,6 +144,7 @@ uint16_t adc_index;                              // Index into result buffer
 
 void initADC(void);
 void initEPWM(void);
+void EPWM_changeClock(uint32_t base, float32_t ClkInHz );
 void initADCSOC(void);
 void fft_routine(void);
 __interrupt void adcA1ISR(void);
@@ -388,8 +389,10 @@ void cheeck_ipc()
                 CallFlashAPI(userFlashStart+24,flashInitValue,8);
                 EINT;
                 //initEPWM();
+                //EPWM_changeClock(EPWM1_BASE,(float32_t) data);
             }
             data = HWREG(userFlashStart+24);
+            if(data == 0xFFFFFFFF) data  = ADC_SAMPLING_FREQ;
             HWREG(IPC_BASE +  IPC_O_LOCALREPLY) = data  ;//SystemInitFlash
             HWREG(IPC_BASE +  IPC_O_ACK) = IPC_SET_IPC30  ;
         }
@@ -574,13 +577,43 @@ void initADC(void)
     DEVICE_DELAY_US(1000);
 }
 
+void EPWM_changeClock(uint32_t base, float32_t ClkInHz )
+{
+    float32_t tbClkInHz = 0.0F;
+    uint16_t tbPrdVal = 0U, cmpAVal = 0U, cmpBVal = 0U;
+    EPWM_SignalParams sigParams =
+            {ClkInHz , 0.5f, 0.5f, true, DEVICE_SYSCLK_FREQ, SYSCTL_EPWMCLK_DIV_2,
+             EPWM_COUNTER_MODE_DOWN, EPWM_CLOCK_DIVIDER_1,
+            EPWM_HSCLOCK_DIVIDER_1};
+
+    EPWM_SignalParams *signalParams = &sigParams  ;
+
+    ASSERT(EPWM_isBaseValid(base));
+
+    tbClkInHz = ((float32_t)signalParams->sysClkInHz /
+                (1U << ((uint16_t)signalParams->epwmClkDiv +
+                 (uint16_t)signalParams->tbClkDiv)));
+
+    tbClkInHz /= (2U * (uint16_t)signalParams->tbHSClkDiv);
+
+    tbPrdVal = (uint16_t)((tbClkInHz / signalParams->freqInHz) - 1.0f);
+    cmpAVal = (uint16_t)((tbPrdVal + 1U) -
+                   ((float32_t)signalParams->dutyValA * (tbPrdVal + 1U)));
+    cmpBVal = (uint16_t)((tbPrdVal + 1U) -
+                       ((float32_t)signalParams->dutyValB * (tbPrdVal + 1U)));
+    // Configure TBPRD value
+    EPWM_setTimeBasePeriod(base, tbPrdVal);
+    // Set Compare values
+    EPWM_setCounterCompareValue(base, EPWM_COUNTER_COMPARE_A, cmpAVal);
+    EPWM_setCounterCompareValue(base, EPWM_COUNTER_COMPARE_B, cmpBVal);
+}
 // Function to configure ePWM1 to generate the SOC.
 void initEPWM(void)
 {
     pwmFrequency= (float32_t) HWREG(userFlashStart+24);
     if(pwmFrequency > 0  && pwmFrequency < 2000000 ) pwmFrequency = pwmFrequency;
     //else freq = ADC_SAMPLING_FREQ;
-    else pwmFrequency= 80000;
+    else pwmFrequency= ADC_SAMPLING_FREQ;
 
     //EPWM1_BASE
 
