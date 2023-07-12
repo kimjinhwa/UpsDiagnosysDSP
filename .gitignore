@@ -8,5 +8,5 @@ CPU1_RAM/
 /CPU1_STANDALONE__opt_for_speed__3/
 /CPU1_STANDALONE__opt_for_speed__4/
 /CPU1_STANDALONE__opt_for_speed__5/
-Document/DIAGNOSTICSYSTEM_V1.DSNlck
-Document/diagnosticsystem_v1.opj 
+device/driverlib/
+Document/

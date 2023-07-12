@@ -35,28 +35,23 @@
 			<type>1</type>
 			<locationURI>INSTALLROOT_2837X/headers/cmd/F2837xD_Headers_nonBIOS_cpu1.cmd</locationURI>
 		</link>
-		<link>
-			<name>driverlib.lib</name>
-			<type>1</type>
-			<location>C:/ti/C2000Ware_3_04_00_00_Software/driverlib/f2837xd/driverlib/ccs/Debug/driverlib.lib</location>
-		</link>
 	</linkedResources>
 	<variableList>
 		<variable>
 			<name>C2000WARE_DLIB_ROOT</name>
-			<value>$%7BCOM_TI_C2000WARE_SOFTWARE_PACKAGE_INSTALL_DIR%7D/driverlib/f2837xd/driverlib</value>
+			<value>$%7BC2000WARE_ROOT%7D/driverlib/f2837xd/driverlib</value>
 		</variable>
 		<variable>
 			<name>C2000WARE_ROOT</name>
-			<value>$%7BCOM_TI_C2000WARE_SOFTWARE_PACKAGE_INSTALL_DIR%7D</value>
+			<value>file:/C:/ti/C2000Ware_4_03_00_00</value>
 		</variable>
 		<variable>
 			<name>INSTALLROOT_2837X</name>
-			<value>file:/C:/ti/C2000Ware_3_04_00_00_Software/device_support/f2837xd</value>
+			<value>$%7BC2000WARE_ROOT%7D/device_support/f2837xd</value>
 		</variable>
 		<variable>
 			<name>INSTALLROOT_TO_FPU</name>
-			<value>file:/C:/ti/C2000Ware_3_04_00_00_Software/libraries/dsp/FPU/c28/include</value>
+			<value>$%7BC2000WARE_ROOT%7D/libraries/dsp/FPU/c28/include</value>
 		</variable>
 	</variableList>
 </projectDescription>

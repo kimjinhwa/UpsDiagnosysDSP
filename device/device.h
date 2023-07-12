@@ -5,10 +5,10 @@
 // TITLE:  Device setup for examples.
 //
 //#############################################################################
-// $TI Release: F2837xD Support Library v3.11.00.00 $
-// $Release Date: Sun Oct  4 15:55:24 IST 2020 $
+//
+// $Release Date: $
 // $Copyright:
-// Copyright (C) 2013-2020 Texas Instruments Incorporated - http://www.ti.com/
+// Copyright (C) 2013-2023 Texas Instruments Incorporated - http://www.ti.com/
 //
 // Redistribution and use in source and binary forms, with or without 
 // modification, are permitted provided that the following conditions 
@@ -92,18 +92,35 @@ a single CPU should be defined."
 #endif
 
 //
-// CANA
+// GPIO assignment for CAN-A and CAN-B
 //
-#define DEVICE_GPIO_PIN_CANTXA      31U  // GPIO number for CANTXA
-#define DEVICE_GPIO_PIN_CANRXA      30U  // GPIO number for CANRXA
-
-//
-// CAN External Loopback
-//
+#ifdef _LAUNCHXL_F28379D
+#define DEVICE_GPIO_CFG_CANRXA      GPIO_36_CANRXA  // "pinConfig" for CANA RX
+#define DEVICE_GPIO_CFG_CANTXA      GPIO_37_CANTXA  // "pinConfig" for CANA TX
+#define DEVICE_GPIO_CFG_CANRXB      GPIO_17_CANRXB  // "pinConfig" for CANB RX
+#define DEVICE_GPIO_CFG_CANTXB      GPIO_12_CANTXB  // "pinConfig" for CANB TX
+#else
 #define DEVICE_GPIO_CFG_CANRXA      GPIO_30_CANRXA  // "pinConfig" for CANA RX
 #define DEVICE_GPIO_CFG_CANTXA      GPIO_31_CANTXA  // "pinConfig" for CANA TX
 #define DEVICE_GPIO_CFG_CANRXB      GPIO_10_CANRXB  // "pinConfig" for CANB RX
 #define DEVICE_GPIO_CFG_CANTXB      GPIO_8_CANTXB   // "pinConfig" for CANB TX
+
+//I2CA GPIO pins
+#define DEVICE_GPIO_PIN_SDAA    104
+#define DEVICE_GPIO_PIN_SCLA    105
+
+#define DEVICE_GPIO_CFG_SDAA GPIO_104_SDAA
+#define DEVICE_GPIO_CFG_SCLA GPIO_105_SCLA
+
+
+//I2CB GPIO pins
+#define DEVICE_GPIO_PIN_SDAB    40
+#define DEVICE_GPIO_PIN_SCLB    41
+
+#define DEVICE_GPIO_CFG_SDAB GPIO_40_SDAB
+#define DEVICE_GPIO_CFG_SCLB GPIO_41_SCLB
+
+#endif
 
 //*****************************************************************************
 //
@@ -142,7 +159,6 @@ a single CPU should be defined."
 //
 // 20MHz XTAL on controlCARD. For use with SysCtl_getClock().
 //
-// 10MHz XTAL on controlCARD. For use with SysCtl_getClock().
 #define DEVICE_OSCSRC_FREQ          20000000U
 
 //
@@ -234,17 +250,141 @@ extern uint32_t Example_Fail;
 // Function Prototypes
 //
 //*****************************************************************************
+//*****************************************************************************
+//
+//! \addtogroup device_api
+//! @{
+//
+//*****************************************************************************
+//*****************************************************************************
+//
+//! @brief Function to initialize the device. Primarily initializes system control to a
+//! known state by disabling the watchdog, setting up the SYSCLKOUT frequency,
+//! and enabling the clocks to the peripherals.
+//!
+//! \param None.
+//! \return None.
+//
+//*****************************************************************************
 extern void Device_init(void);
+//*****************************************************************************
+//!
+//!
+//! @brief Function to turn on all peripherals, enabling reads and writes to the
+//! peripherals' registers.
+//!
+//! Note that to reduce power, unused peripherals should be disabled.
+//!
+//! @param None
+//! @return None
+//
+//*****************************************************************************
 extern void Device_enableAllPeripherals(void);
+//*****************************************************************************
+//!
+//!
+//! @brief Function to disable pin locks on GPIOs.
+//!
+//! @param None
+//! @return None
+//
+//*****************************************************************************
 extern void Device_initGPIO(void);
+//*****************************************************************************
+//!
+//! @brief Function to enable pullups for the unbonded GPIOs on the 176PTP package:
+//! GPIOs     Grp Bits
+//! 95-132    C   31
+//!           D   31:0
+//!           E   4:0
+//! 134-168   E   31:6
+//!           F   8:0
+//!
+//! @param None
+//! @return None
+//
+//*****************************************************************************
 extern void Device_enableUnbondedGPIOPullupsFor176Pin(void);
+//*****************************************************************************
+//!
+//! @brief Function to enable pullups for the unbonded GPIOs on the 100PZ package:
+//! GPIOs     Grp Bits
+//! 0-1       A   1:0
+//! 5-9       A   9:5
+//! 22-40     A   31:22
+//!           B   8:0
+//! 44-57     B   25:12
+//! 67-68     C   4:3
+//! 74-77     C   13:10
+//! 79-83     C   19:15
+//! 93-168    C   31:29
+//!           D   31:0
+//!           E   31:0
+//!           F   8:0
+//! @param None
+//! @return None
+//
+//
+//*****************************************************************************
 extern void Device_enableUnbondedGPIOPullupsFor100Pin(void);
+//*****************************************************************************
+//!
+//! @brief Function to enable pullups for the unbonded GPIOs on the
+//! 176PTP package.
+//!
+//! @param None
+//! @return None
+//
+//*****************************************************************************
 extern void Device_enableUnbondedGPIOPullups(void);
 #ifdef CPU1
+//*****************************************************************************
+//!
+//! @brief Function to implement Analog trim of TMX devices
+//!
+//! @param None
+//! @return None
+//
+//*****************************************************************************
 extern void Device_configureTMXAnalogTrim(void);
+//*****************************************************************************
+//! @brief Executes a CPU02 control system bootloader.
+//!
+//! \param bootMode specifies which CPU02 control system boot mode to execute.
+//!
+//! This function will allow the CPU01 master system to boot the CPU02 control
+//! system via the following modes: Boot to RAM, Boot to Flash, Boot via SPI,
+//! SCI, I2C, or parallel I/O. This function blocks and waits until the
+//! control system boot ROM is configured and ready to receive CPU01 to CPU02
+//! IPC INT0 interrupts. It then blocks and waits until IPC INT0 and
+//! IPC FLAG31 are available in the CPU02 boot ROM prior to sending the
+//! command to execute the selected bootloader.
+//!
+//! The \e bootMode parameter accepts one of the following values:
+//!  - \b C1C2_BROM_BOOTMODE_BOOT_FROM_PARALLEL
+//!  - \b C1C2_BROM_BOOTMODE_BOOT_FROM_SCI
+//!  - \b C1C2_BROM_BOOTMODE_BOOT_FROM_SPI
+//!  - \b C1C2_BROM_BOOTMODE_BOOT_FROM_I2C
+//!  - \b C1C2_BROM_BOOTMODE_BOOT_FROM_CAN
+//!  - \b C1C2_BROM_BOOTMODE_BOOT_FROM_RAM
+//!  - \b C1C2_BROM_BOOTMODE_BOOT_FROM_FLASH
+//!
+//! \return 0 (success) if command is sent, or 1 (failure) if boot mode is
+//! invalid and command was not sent.
+//
+//*****************************************************************************
 extern uint16_t Device_bootCPU2(uint32_t ulBootMode);
 #endif
-extern void __error__(char *filename, uint32_t line);
+//*****************************************************************************
+//!
+//! @brief Error handling function to be called when an ASSERT is violated
+//!
+//! @param *filename File name in which the error has occurred
+//! @param line Line number within the file
+//! @return None
+//
+//*****************************************************************************
+extern void __error__(const char *filename, uint32_t line);
 extern void Example_setResultPass(void);
 extern void Example_setResultFail(void);
 extern void Example_done(void);

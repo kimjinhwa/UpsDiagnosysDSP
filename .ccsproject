@@ -10,8 +10,9 @@
 	<rts value="libc.a"/>
 	<createSlaveProjects value=""/>
 	<templateProperties value="id=adc_ex2_soc_epwm.projectspec.adc_ex2_soc_epwm"/>
-	<origin value="C:\ti\C2000Ware_3_03_00_00_Software\driverlib\f2837xd\examples\cpu1\adc\CCS\adc_ex2_soc_epwm.projectspec"/>
+	<origin value="C:\ti\C2000Ware_4_03_00_00_Software\driverlib\f2837xd\examples\cpu1\adc\CCS\adc_ex2_soc_epwm.projectspec"/>
 	<filesToOpen value=""/>
-	<connection value="common/targetdb/connections/TIXDS2XXUSB_Connection.xml"/>
+	<connection value="common/targetdb/connections/TIXDS110_Connection.xml"/>
 	<isTargetManual value="false"/>
+	<sourceLookupPath value=""/>
 </projectOptions>

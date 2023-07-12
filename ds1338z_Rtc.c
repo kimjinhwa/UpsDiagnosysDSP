@@ -30,7 +30,7 @@ void initI2CFIFO()
 
     I2C_disableModule(I2CA_BASE);
     I2C_initMaster(I2CA_BASE, DEVICE_SYSCLK_FREQ, 400000, I2C_DUTYCYCLE_50);
-    I2C_setConfig(I2CA_BASE, I2C_MASTER_SEND_MODE);
+    I2C_setConfig(I2CA_BASE, I2C_CONTROLLER_SEND_MODE /*I2C_MASTER_SEND_MODE*/);
     I2C_setSlaveAddress(I2CA_BASE, 104);
     I2C_disableLoopback(I2CA_BASE);
     I2C_setBitCount(I2CA_BASE, I2C_BITCOUNT_8);
@@ -176,7 +176,7 @@ int i2c_read(uint8_t addr ,uint8_t *buf, uint8_t num)
     while(I2C_getStopConditionStatus(I2CA_BASE));//1. TX Data보내고 STOP 후 0으로 리셋됨
     while(I2C_isBusBusy(I2CA_BASE));//2. 0:Bus free. 1: Bus busy
     I2C_enableModule(I2CA_BASE);
-    I2C_setConfig(I2CA_BASE,I2C_MASTER_SEND_MODE);
+    I2C_setConfig(I2CA_BASE, I2C_CONTROLLER_SEND_MODE /*I2C_MASTER_SEND_MODE*/);
     I2C_setDataCount(I2CA_BASE,1);
     I2C_putData(I2CA_BASE, data_addr);//5. Data Address  //I2caRegs.I2CDXR.all = data_addr;
     I2C_sendStartCondition(I2CA_BASE);//I2caRegs.I2CMDR.all = 0x2620;       //6. START Send && CLK Send && TX Mode SET && I2C Enable
@@ -186,7 +186,7 @@ int i2c_read(uint8_t addr ,uint8_t *buf, uint8_t num)
     // FDF 0 Free data format // BC 0 0 0  8 BIT
     while(!(I2C_getStatus(I2CA_BASE) & I2C_STS_REG_ACCESS_RDY));//while(I2caRegs.I2CSTR.bit.ARDY==0); //7. 보낸 데이터 보내고 I2C 모듈 레지스터에 액세스 할 준비가되었음을 나타냄.
     while(I2C_getStopConditionStatus(I2CA_BASE)); //while(I2C_getStopConditionStatus(I2CA_BASE));
-    I2C_setConfig(I2CA_BASE,I2C_MASTER_RECEIVE_MODE);
+    I2C_setConfig(I2CA_BASE,I2C_CONTROLLER_RECEIVE_MODE /*I2C_MASTER_RECEIVE_MODE*/);
     I2C_setDataCount(I2CA_BASE,receiveDataCount);
     I2C_sendStartCondition(I2CA_BASE);
     I2C_sendStopCondition(I2CA_BASE); //I2caRegs.I2CMDR.all = 0x2C20;   //11. START Send && CLK Send && RX Mode SET && I2C Enable && STOP Send
@@ -210,7 +210,7 @@ void i2c_write(uint8_t addr,uint8_t *wdata,uint8_t dataCount )
     I2C_setEmulationMode(I2CA_BASE,I2C_EMULATION_FREE_RUN);
     while(I2C_getStopConditionStatus(I2CA_BASE));//1. TX Data보내고 STOP 후 0으로 리셋됨
     while(I2C_isBusBusy(I2CA_BASE));//2. 0:Bus free. 1: Bus busy
-    I2C_setConfig(I2CA_BASE,I2C_MASTER_SEND_MODE);
+    I2C_setConfig(I2CA_BASE, I2C_CONTROLLER_SEND_MODE /*I2C_MASTER_SEND_MODE*/);
     I2C_setDataCount(I2CA_BASE,dataCount);
     I2C_putData(I2CA_BASE, data_addr);//5. Data Address  //I2caRegs.I2CDXR.all = data_addr;
     for(i=0;i<dataCount;i++) I2C_putData(I2CA_BASE, *(wdata+i) );

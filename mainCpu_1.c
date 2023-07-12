@@ -148,7 +148,7 @@ void EPWM_changeClock(uint32_t base, float32_t ClkInHz );
 void initADCSOC(void);
 void fft_routine(void);
 __interrupt void adcA1ISR(void);
-__interrupt void pwmE3ISR(void);
+//__interrupt void pwmE3ISR(void);
 
 //! <table>
 //! <caption id="multi_row">Performance Data</caption>
@@ -330,7 +330,7 @@ void setupCpu2(){
 	GPIO_setPinConfig(GPIO_58_SPISIMOA);
 	GPIO_setPinConfig(GPIO_59_SPISOMIA);
 	GPIO_setPinConfig(GPIO_60_SPICLKA);
-	GPIO_setPinConfig(GPIO_19_SPISTEA);
+	GPIO_setPinConfig(GPIO_61_SPISTEA);
 
 	//SD_DETECT initialization
 	GPIO_setDirectionMode(SD_DETECT, GPIO_DIR_MODE_IN);
@@ -344,11 +344,12 @@ void setupCpu2(){
 	GPIO_setMasterCore(SPI_CS, GPIO_CORE_CPU2);
 	GPIO_setQualificationMode(SPI_CS, GPIO_QUAL_SYNC);
 
-	MemCfg_setGSRAMMasterSel(MEMCFG_SECT_GS2,MEMCFG_GSRAMMASTER_CPU2);
-	MemCfg_setGSRAMMasterSel(MEMCFG_SECT_GS3,MEMCFG_GSRAMMASTER_CPU2);
-	MemCfg_setGSRAMMasterSel(MEMCFG_SECT_GS4,MEMCFG_GSRAMMASTER_CPU2);
-	MemCfg_setGSRAMMasterSel(MEMCFG_SECT_GS5,MEMCFG_GSRAMMASTER_CPU2);
-	MemCfg_setGSRAMMasterSel(MEMCFG_SECT_GS7,MEMCFG_GSRAMMASTER_CPU2);
+
+	MemCfg_setGSRAMControllerSel(MEMCFG_SECT_GS2,MEMCFG_GSRAMCONTROLLER_CPU2);
+	MemCfg_setGSRAMControllerSel(MEMCFG_SECT_GS3,MEMCFG_GSRAMCONTROLLER_CPU2);
+	MemCfg_setGSRAMControllerSel(MEMCFG_SECT_GS4,MEMCFG_GSRAMCONTROLLER_CPU2);
+	MemCfg_setGSRAMControllerSel(MEMCFG_SECT_GS5,MEMCFG_GSRAMCONTROLLER_CPU2);
+	MemCfg_setGSRAMControllerSel(MEMCFG_SECT_GS7,MEMCFG_GSRAMCONTROLLER_CPU2);
 	//MemCfg_unlockConfig(MEMCFG_SECT_GS5);
     //SysCtl_selectCPUForPeripheral(SYSCTL_CPUSEL5_SCI,3,SYSCTL_CPUSEL_CPU2);//SCI_C is 3
     //EALLOW;
@@ -467,6 +468,7 @@ void main(void)
 #else
     Device_bootCPU2(C1C2_BROM_BOOTMODE_BOOT_FROM_RAM);
 #endif //_FLASH
+
 #else // _STANDALONE
 #ifdef _FLASH
     //Device_bootCPU2(C1C2_BROM_BOOTMODE_BOOT_FROM_RAM);
@@ -521,6 +523,12 @@ void main(void)
     DEVICE_DELAY_US(128000);// 125*1024 128us at 8Khz    128us
                               //한번의 ADC를 다 읽는데 걸리는 시간이다.
 
+
+    ds1338_read_time(&time);
+    if(time.year < 23 ){
+        make_time(&time,23,7,12,15,01,01);
+        ds1338_write_time(&time);
+    }
 
     while(1)
     {
@@ -611,9 +619,7 @@ void EPWM_changeClock(uint32_t base, float32_t ClkInHz )
 void initEPWM(void)
 {
     pwmFrequency= (float32_t) HWREG(userFlashStart+24);
-    if(pwmFrequency > 0  && pwmFrequency < 2000000 ) pwmFrequency = pwmFrequency;
-    //else freq = ADC_SAMPLING_FREQ;
-    else pwmFrequency= ADC_SAMPLING_FREQ;
+    if(pwmFrequency < 0  || pwmFrequency > 2000000 ) pwmFrequency= ADC_SAMPLING_FREQ;
 
     //EPWM1_BASE
 
