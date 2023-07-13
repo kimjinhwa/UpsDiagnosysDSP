@@ -159,7 +159,7 @@ void initADCSOC(void);
 void fft_routine(void);
 __interrupt void adcA1ISR(void);
 void INT_myUSB0_ISR(void);
-//__interrupt void pwmE3ISR(void);
+__interrupt void pwmE3ISR(void);
 
 //! <table>
 //! <caption id="multi_row">Performance Data</caption>
