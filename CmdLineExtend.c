@@ -5,6 +5,7 @@
  *      Author: STELLA
  */
 #include "cmdLineExtend.h"
+#include "version.h"
 
 
 #pragma CODE_SECTION(myFunction,".TI.ramfunc")
@@ -68,6 +69,7 @@ tCmdLineEntry g_psCmdTable[] =
     { "cd",     Cmd_cd,      "   : alias for chdir" },
     { "pwd",    Cmd_pwd,      "  : Show current working directory" },
     { "cat",    Cmd_cat,      "  : Show contents of a text file" },
+    { "ver",    Cmd_ver,      "  : Show Firmware Version" },
     { 0, 0, 0 }
 };
 
@@ -173,6 +175,15 @@ USBHCDEvents(void *pvData)
         break;
     }
     }
+}
+
+int Cmd_ver(int argc, char *argv[])
+{
+    SCIprintf("\nFirmware Version \n");
+    SCIprintf(version);
+    SCIprintf("\n");
+
+    return(0);
 }
 int Cmd_help(int argc, char *argv[])
 {
