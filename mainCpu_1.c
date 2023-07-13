@@ -6,15 +6,8 @@
 #include "device.h"
 
 #include <string.h>
-#include "usb_hal.h"
-#include "usblib.h"
-#include "usbmsc.h"
-#include "host/usbhost.h"
-#include "host/usbhmsc.h"
+#include "cmdlineExtend.h"
 #include "c2000ware_libraries.h"
-#include "scistdio.h"
-#include "fatfs/src/ff.h"
-#include "cmdline.h"
 
 #include "board.h"
 #include "F2837xD_device.h"
@@ -28,9 +21,6 @@
 #include <uart/uart_util.h>
 #include "ds1338z_Rtc.h"
 #include "cpuFlashMemory.h"
-
-
-#include "usblib.h"
 
 //#include "dmaCopy.h"
 // Defines
@@ -159,11 +149,11 @@ uint16_t adc_index;                              // Index into result buffer
 
 
 
-#pragma CODE_SECTION(myFunction,".TI.ramfunc")
-void myFunction()
-{
-    SCIprintf("Test");
-}
+//#pragma CODE_SECTION(myFunction,".TI.ramfunc")
+//void myFunction()
+//{
+//    SCIprintf("Test");
+//}
 
 void initADC(void);
 void initEPWM(void);
@@ -171,7 +161,7 @@ void EPWM_changeClock(uint32_t base, float32_t ClkInHz );
 void initADCSOC(void);
 void fft_routine(void);
 __interrupt void adcA1ISR(void);
-void INT_myUSB0_ISR(void);
+//void INT_myUSB0_ISR(void);
 __interrupt void pwmE3ISR(void);
 void MSCCallback(tUSBHMSCInstance *psMSCInstance, uint32_t ui32Event, void *pvEventData);
 void ReadLine(void);
@@ -1785,9 +1775,9 @@ __interrupt void adcA1ISR(void)  // note_2
 //! C2000 PIE controller.
 //
 //******************************************************************************
-__interrupt void
-INT_myUSB0_ISR(void)
-{
-    USB0HostIntHandler();
-    Interrupt_clearACKGroup(INTERRUPT_ACK_GROUP9);
-}
+//__interrupt void
+//INT_myUSB0_ISR(void)
+//{
+//    USB0HostIntHandler();
+//    Interrupt_clearACKGroup(INTERRUPT_ACK_GROUP9);
+//}
