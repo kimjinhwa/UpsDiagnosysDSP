@@ -172,6 +172,7 @@ void fft_routine(void);
 __interrupt void adcA1ISR(void);
 void INT_myUSB0_ISR(void);
 __interrupt void pwmE3ISR(void);
+void MSCCallback(tUSBHMSCInstance *psMSCInstance, uint32_t ui32Event, void *pvEventData);
 
 //! <table>
 //! <caption id="multi_row">Performance Data</caption>
@@ -601,6 +602,46 @@ void cheeck_ipc()
     }
 
 }
+void MSCCallback(tUSBHMSCInstance *psMSCInstance, uint32_t ui32Event, void *pvEventData)
+{
+    //
+    // Determine the event.
+    //
+    switch(ui32Event)
+    {
+        //
+        // Called when the device driver has successfully enumerated an MSC
+        // device.
+        //
+    case MSC_EVENT_OPEN:
+    {
+        //
+        // Proceed to the enumeration state.
+        //
+        g_eState = STATE_DEVICE_ENUM;
+        break;
+    }
+
+    //
+    // Called when the device driver has been unloaded due to error or
+    // the device is no longer present.
+    //
+    case MSC_EVENT_CLOSE:
+    {
+        //
+        // Go back to the "no device" state and wait for a new connection.
+        //
+        g_eState = STATE_NO_DEVICE;
+
+        break;
+    }
+
+    default:
+    {
+        break;
+    }
+    }
+}
 
 
 
@@ -709,6 +750,10 @@ void main(void)
     myFunction();
     SCIprintf("\n\nUSB Mass Storage Host program\n");
     SCIprintf("Type \'help\' for help.\n\n");
+    USBHCDRegisterDrivers(0, g_ppHostClassDrivers, NUM_CLASS_DRIVERS);
+    g_psMSCInstance = USBHMSCDriveOpen(0, (tUSBHMSCCallback)MSCCallback);
+    f_mount(0, &g_sFatFs);
+
     while(1)
     {
         cheeck_ipc();  // CPU2에서 IPC의 요청이 있는지를 확인한다.
