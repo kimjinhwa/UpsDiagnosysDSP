@@ -1,5 +1,6 @@
 CPU1_RAM/ 
 *.*~
+*.swp
 /CPU1_FLASH/
 /CPU1_STANDALONE/
 /CPU1_STANDALONE__opt_for_speed__0/

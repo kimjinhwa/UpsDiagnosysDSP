@@ -902,7 +902,7 @@ const char * StringFromFresult(FRESULT fresult)
 }
 void ReadLineEx(void){
     int iStatus;
-    while(1)
+    //while(1)
     {
         //
         // Get a line of text from the user.
@@ -910,7 +910,8 @@ void ReadLineEx(void){
         ReadLine();
         if(g_cCmdBuf[0] == '\0')
         {
-            continue;
+            //continue;
+            return;
         }
 
         //

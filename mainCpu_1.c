@@ -560,12 +560,10 @@ void main(void)
     SCIprintf("\n\nUSB Mass Storage Host program\n");
     SCIprintf("Type \'help\' for help.\n\n");
     initUsbDriver();
-    ReadLineEx();// while Routine in this function
-
-    /*
     while(1)
     {
-        cheeck_ipc();  // CPU2에서 IPC의 요청이 있는지를 확인한다.
+        ReadLineEx();// while Routine in this function
+        //cheeck_ipc();  // CPU2에서 IPC의 요청이 있는지를 확인한다.
         if(isMemCpyDoneFFT)// After memoryCopyComplete then excute fft_routine   68uS
         {
             // CPU2에서 사용하고 있지 않으면...
@@ -581,7 +579,6 @@ void main(void)
            else{};//현재의 메모리를 CPU에서 사용하고 있는경우..
         }
     }
-    */
 }
 
         //GPIO_togglePin(BLINKY_LED_GPIO );
