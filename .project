@@ -53,5 +53,9 @@
 			<name>INSTALLROOT_TO_FPU</name>
 			<value>$%7BC2000WARE_ROOT%7D/libraries/dsp/FPU/c28/include</value>
 		</variable>
+		<variable>
+			<name>USB_LIB_ROOT</name>
+			<value>$%7BCOM_TI_C2000WARE_SOFTWARE_PACKAGE_INSTALL_DIR%7D/libraries/communications/usb/f2837xd/include</value>
+		</variable>
 	</variableList>
 </projectDescription>

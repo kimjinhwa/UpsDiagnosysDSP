@@ -4,6 +4,16 @@
 
 #include "driverlib.h"
 #include "device.h"
+
+#include <string.h>
+//#include "usb_hal.h"
+//#include "usblib.h"
+//#include "usbmsc.h"
+//#include "host/usbhost.h"
+//#include "host/usbhmsc.h"
+//#include "c2000ware_libraries.h"
+
+#include "board.h"
 #include "F2837xD_device.h"
 #include "inc/hw_ipc.h"
 #include "fpu_rfft.h"            // Main include file
@@ -148,6 +158,7 @@ void EPWM_changeClock(uint32_t base, float32_t ClkInHz );
 void initADCSOC(void);
 void fft_routine(void);
 __interrupt void adcA1ISR(void);
+void INT_myUSB0_ISR(void);
 //__interrupt void pwmE3ISR(void);
 
 //! <table>
@@ -164,6 +175,9 @@ const void *adcsrcAddr[20];  // Contain Adcbuffer address
 const void *srcAddr;         //
 static float32_t pwmFrequency;  //Adc Reading Frequency.
                                 //This value is defined dafault, And can modified from CLI at CPU2
+
+
+
 
 void fft_routine(void)
 {
@@ -457,6 +471,10 @@ void main(void)
     initLocalGpio();
     Interrupt_initModule();
     Interrupt_initVectorTable();
+
+    Board_init();
+    //C2000Ware_libraries_init();
+    //USBHCDInit(0,g_pHCDPool, HCD_MEMORY_SIZE);
 
     I2caRegs.I2CCLKH = 0x00;
     request_fft=0;
@@ -802,4 +820,17 @@ __interrupt void adcA1ISR(void)  // note_2
     // Acknowledge the interrupt
     // ADCA1 and  ADCB1 and  ADCC1 and  ADCD1 are GROUP1
     Interrupt_clearACKGroup(INTERRUPT_ACK_GROUP1);
+}
+
+//******************************************************************************
+//
+//! Host interrupt service routine wrapper to make ISR compatible with
+//! C2000 PIE controller.
+//
+//******************************************************************************
+__interrupt void
+INT_myUSB0_ISR(void)
+{
+    //USB0HostIntHandler();
+    Interrupt_clearACKGroup(INTERRUPT_ACK_GROUP9);
 }

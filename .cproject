@@ -280,6 +280,7 @@
 									<listOptionValue builtIn="false" value="${C2000WARE_ROOT}\driverlib\f2837xd\driverlib\inc"/>
 									<listOptionValue builtIn="false" value="${PROJECT_ROOT}"/>
 									<listOptionValue builtIn="false" value="${PROJECT_ROOT}/device"/>
+									<listOptionValue builtIn="false" value="${USB_LIB_ROOT}"/>
 									<listOptionValue builtIn="false" value="${C2000WARE_DLIB_ROOT}"/>
 									<listOptionValue builtIn="false" value="${CG_TOOL_ROOT}/include"/>
 									<listOptionValue builtIn="false" value="${C2000WARE_ROOT}\device_support\f2837xd\common\include"/>
