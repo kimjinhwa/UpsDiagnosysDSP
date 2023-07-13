@@ -6,12 +6,12 @@
 #include "device.h"
 
 #include <string.h>
-//#include "usb_hal.h"
-//#include "usblib.h"
-//#include "usbmsc.h"
-//#include "host/usbhost.h"
-//#include "host/usbhmsc.h"
-//#include "c2000ware_libraries.h"
+#include "usb_hal.h"
+#include "usblib.h"
+#include "usbmsc.h"
+#include "host/usbhost.h"
+#include "host/usbhmsc.h"
+#include "c2000ware_libraries.h"
 
 #include "board.h"
 #include "F2837xD_device.h"
@@ -183,7 +183,43 @@ static float32_t pwmFrequency;  //Adc Reading Frequency.
 
 
 
-void C2000Ware_libraries_init();
+//static tUSBHostClassDriver const * const g_ppHostClassDrivers[] =
+//{
+//    &g_sUSBHostMSCClassDriver,
+//    &g_sUSBEventDriver
+//};
+
+#define NUM_CLASS_DRIVERS       (sizeof(g_ppHostClassDrivers)                 /\
+                                 sizeof(g_ppHostClassDrivers[0]))
+typedef enum
+{
+    //
+    // No device is present.
+    //
+    STATE_NO_DEVICE,
+
+    //
+    // Mass storage device is being enumerated.
+    //
+    STATE_DEVICE_ENUM,
+
+    //
+    // Mass storage device is ready.
+    //
+    STATE_DEVICE_READY,
+
+    //
+    // An unsupported device has been attached.
+    //
+    STATE_UNKNOWN_DEVICE,
+
+    //
+    // A power fault has occurred.
+    //
+    STATE_POWER_FAULT
+} tState;
+volatile tState g_eState;
+volatile tState g_eUIState;
 tUSBMode g_eCurrentUSBMode;
 void ModeCallback(uint32_t ui32Index, tUSBMode eMode)
 {
