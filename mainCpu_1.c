@@ -12,6 +12,8 @@
 #include "host/usbhost.h"
 #include "host/usbhmsc.h"
 #include "c2000ware_libraries.h"
+#include "scistdio.h"
+#include "fatfs/src/ff.h"
 
 #include "board.h"
 #include "F2837xD_device.h"
@@ -156,6 +158,12 @@ uint16_t adc_index;                              // Index into result buffer
 
 
 
+#pragma CODE_SECTION(myFunction,".TI.ramfunc")
+void myFunction()
+{
+    SCIprintf("Test");
+}
+
 void initADC(void);
 void initEPWM(void);
 void EPWM_changeClock(uint32_t base, float32_t ClkInHz );
@@ -182,12 +190,49 @@ static float32_t pwmFrequency;  //Adc Reading Frequency.
 
 
 
+#define PATH_BUF_SIZE   80
+#define CMD_BUF_SIZE    64
+static char g_cCwdBuf[PATH_BUF_SIZE] = "/";
+static char g_cTmpBuf[PATH_BUF_SIZE];
+static char g_cCmdBuf[CMD_BUF_SIZE];
 
-//static tUSBHostClassDriver const * const g_ppHostClassDrivers[] =
-//{
-//    &g_sUSBHostMSCClassDriver,
-//    &g_sUSBEventDriver
-//};
+static FATFS g_sFatFs;
+static DIR g_sDirObject;
+static FILINFO g_sFileInfo;
+static FIL g_sFileObject;
+typedef struct
+{
+    FRESULT fresult;
+    char *pcResultStr;
+}
+tFresultString;
+#define FRESULT_ENTRY(f)        { (f), (#f) }
+tFresultString g_sFresultStrings[] =
+{
+    FRESULT_ENTRY(FR_OK),
+    FRESULT_ENTRY(FR_NOT_READY),
+    FRESULT_ENTRY(FR_NO_FILE),
+    FRESULT_ENTRY(FR_NO_PATH),
+    FRESULT_ENTRY(FR_INVALID_NAME),
+    FRESULT_ENTRY(FR_INVALID_DRIVE),
+    FRESULT_ENTRY(FR_DENIED),
+    FRESULT_ENTRY(FR_EXIST),
+    FRESULT_ENTRY(FR_RW_ERROR),
+    FRESULT_ENTRY(FR_WRITE_PROTECTED),
+    FRESULT_ENTRY(FR_NOT_ENABLED),
+    FRESULT_ENTRY(FR_NO_FILESYSTEM),
+    FRESULT_ENTRY(FR_INVALID_OBJECT),
+    FRESULT_ENTRY(FR_MKFS_ABORTED)
+};
+
+#define NUM_FRESULT_CODES (sizeof(g_sFresultStrings) / sizeof(tFresultString))
+tUSBHMSCInstance *g_psMSCInstance = 0;
+DECLARE_EVENT_DRIVER(g_sUSBEventDriver, 0, 0, USBHCDEvents);
+static tUSBHostClassDriver const * const g_ppHostClassDrivers[] =
+{
+    &g_sUSBHostMSCClassDriver,
+    &g_sUSBEventDriver
+};
 
 #define NUM_CLASS_DRIVERS       (sizeof(g_ppHostClassDrivers)                 /\
                                  sizeof(g_ppHostClassDrivers[0]))
@@ -229,6 +274,61 @@ void ModeCallback(uint32_t ui32Index, tUSBMode eMode)
 
     g_eCurrentUSBMode = eMode;
 }
+void
+USBHCDEvents(void *pvData)
+{
+    tEventInfo *pEventInfo;
+
+    //
+    // Cast this pointer to its actual type.
+    //
+    pEventInfo = (tEventInfo *)pvData;
+
+    switch(pEventInfo->ui32Event)
+    {
+        //
+        // New keyboard detected.
+        //
+    case USB_EVENT_UNKNOWN_CONNECTED:
+    {
+        //
+        // An unknown device was detected.
+        //
+        g_eState = STATE_UNKNOWN_DEVICE;
+
+        break;
+    }
+
+    //
+    // Keyboard has been unplugged.
+    //
+    case USB_EVENT_DISCONNECTED:
+    {
+        //
+        // Unknown device has been removed.
+        //
+        g_eState = STATE_NO_DEVICE;
+
+        break;
+    }
+
+    case USB_EVENT_POWER_FAULT:
+    {
+        //
+        // No power means no device is present.
+        //
+        g_eState = STATE_POWER_FAULT;
+
+        break;
+    }
+
+    default:
+    {
+        break;
+    }
+    }
+}
+/////////  END  USB  //
 
 void fft_routine(void)
 {
@@ -383,12 +483,12 @@ void init_timer0()
 
 //
 void setupCpu2(){
-    SysCtl_selectCPUForPeripheral(SYSCTL_CPUSEL5_SCI,3,SYSCTL_CPUSEL_CPU2);//SCI_C is 3
+    SysCtl_selectCPUForPeripheral(SYSCTL_CPUSEL5_SCI,3,SYSCTL_CPUSEL_CPU1);//SCI_C is 3
     GPIO_setPinConfig(GPIO_90_SCIRXDC);
     GPIO_setPinConfig(GPIO_89_SCITXDC);
 
 
-    SysCtl_selectCPUForPeripheral(SYSCTL_CPUSEL6_SPI,1,SYSCTL_CPUSEL_CPU2);//SPI_A is 1
+    SysCtl_selectCPUForPeripheral(SYSCTL_CPUSEL6_SPI,1,SYSCTL_CPUSEL_CPU1);//SPI_A is 1
 	GPIO_setPinConfig(GPIO_57_GPIO57); //GPIO57 -> SD_DETECT Pinmux
 	GPIO_setPinConfig(GPIO_61_GPIO61); //GPIO61 -> SPI_CS Pinmux
 
@@ -400,21 +500,21 @@ void setupCpu2(){
 	//SD_DETECT initialization
 	GPIO_setDirectionMode(SD_DETECT, GPIO_DIR_MODE_IN);
 	GPIO_setPadConfig(SD_DETECT, GPIO_PIN_TYPE_STD);
-	GPIO_setMasterCore(SD_DETECT, GPIO_CORE_CPU2);
+	GPIO_setMasterCore(SD_DETECT, GPIO_CORE_CPU1);
 	GPIO_setQualificationMode(SD_DETECT, GPIO_QUAL_SYNC);
 
 	//SPI_CS initialization
 	GPIO_setDirectionMode(SPI_CS, GPIO_DIR_MODE_OUT);
 	GPIO_setPadConfig(SPI_CS, GPIO_PIN_TYPE_STD);
-	GPIO_setMasterCore(SPI_CS, GPIO_CORE_CPU2);
+	GPIO_setMasterCore(SPI_CS, GPIO_CORE_CPU1);
 	GPIO_setQualificationMode(SPI_CS, GPIO_QUAL_SYNC);
 
 
-	MemCfg_setGSRAMControllerSel(MEMCFG_SECT_GS2,MEMCFG_GSRAMCONTROLLER_CPU2);
-	MemCfg_setGSRAMControllerSel(MEMCFG_SECT_GS3,MEMCFG_GSRAMCONTROLLER_CPU2);
-	MemCfg_setGSRAMControllerSel(MEMCFG_SECT_GS4,MEMCFG_GSRAMCONTROLLER_CPU2);
-	MemCfg_setGSRAMControllerSel(MEMCFG_SECT_GS5,MEMCFG_GSRAMCONTROLLER_CPU2);
-	MemCfg_setGSRAMControllerSel(MEMCFG_SECT_GS7,MEMCFG_GSRAMCONTROLLER_CPU2);
+	MemCfg_setGSRAMControllerSel(MEMCFG_SECT_GS2,MEMCFG_GSRAMCONTROLLER_CPU1);
+	MemCfg_setGSRAMControllerSel(MEMCFG_SECT_GS3,MEMCFG_GSRAMCONTROLLER_CPU1);
+	MemCfg_setGSRAMControllerSel(MEMCFG_SECT_GS4,MEMCFG_GSRAMCONTROLLER_CPU1);
+	MemCfg_setGSRAMControllerSel(MEMCFG_SECT_GS5,MEMCFG_GSRAMCONTROLLER_CPU1);
+	MemCfg_setGSRAMControllerSel(MEMCFG_SECT_GS7,MEMCFG_GSRAMCONTROLLER_CPU1);
 	//MemCfg_unlockConfig(MEMCFG_SECT_GS5);
     //SysCtl_selectCPUForPeripheral(SYSCTL_CPUSEL5_SCI,3,SYSCTL_CPUSEL_CPU2);//SCI_C is 3
     //EALLOW;
@@ -525,6 +625,9 @@ void main(void)
 
     Board_init();
     C2000Ware_libraries_init();
+    g_eState = STATE_NO_DEVICE;
+    g_eUIState = STATE_NO_DEVICE;
+    USBGPIOEnable();
     //USBHCDInit(0,g_pHCDPool, HCD_MEMORY_SIZE);
 
     I2caRegs.I2CCLKH = 0x00;
@@ -533,9 +636,9 @@ void main(void)
 
 #ifdef _STANDALONE
 #ifdef _FLASH
-    Device_bootCPU2(C1C2_BROM_BOOTMODE_BOOT_FROM_FLASH);
+    //Device_bootCPU2(C1C2_BROM_BOOTMODE_BOOT_FROM_FLASH);
 #else
-    Device_bootCPU2(C1C2_BROM_BOOTMODE_BOOT_FROM_RAM);
+    //Device_bootCPU2(C1C2_BROM_BOOTMODE_BOOT_FROM_RAM);
 #endif //_FLASH
 
 #else // _STANDALONE
@@ -557,8 +660,12 @@ void main(void)
 #endif
 
     initSCIDFIFO();
+    initSCICFIFO();
     initSCIBFIFO();
     initADC();
+
+    SCIStdioConfig(SCIC_BASE, 115200,
+                   SysCtl_getLowSpeedClock(DEVICE_OSCSRC_FREQ));
 
     initEPWM();
 
@@ -599,6 +706,9 @@ void main(void)
         ds1338_write_time(&time);
     }
 
+    myFunction();
+    SCIprintf("\n\nUSB Mass Storage Host program\n");
+    SCIprintf("Type \'help\' for help.\n\n");
     while(1)
     {
         cheeck_ipc();  // CPU2에서 IPC의 요청이 있는지를 확인한다.
