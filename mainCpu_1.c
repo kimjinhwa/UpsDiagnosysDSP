@@ -25,6 +25,10 @@
 #include <uart/uart_util.h>
 #include "ds1338z_Rtc.h"
 #include "cpuFlashMemory.h"
+
+
+#include "usblib.h"
+
 //#include "dmaCopy.h"
 // Defines
 #pragma DATA_SECTION(RFFTin1Buff,"RFFTdata1")
@@ -178,6 +182,17 @@ static float32_t pwmFrequency;  //Adc Reading Frequency.
 
 
 
+
+void C2000Ware_libraries_init();
+tUSBMode g_eCurrentUSBMode;
+void ModeCallback(uint32_t ui32Index, tUSBMode eMode)
+{
+    //
+    // Save the new mode.
+    //
+
+    g_eCurrentUSBMode = eMode;
+}
 
 void fft_routine(void)
 {
@@ -473,7 +488,7 @@ void main(void)
     Interrupt_initVectorTable();
 
     Board_init();
-    //C2000Ware_libraries_init();
+    C2000Ware_libraries_init();
     //USBHCDInit(0,g_pHCDPool, HCD_MEMORY_SIZE);
 
     I2caRegs.I2CCLKH = 0x00;
