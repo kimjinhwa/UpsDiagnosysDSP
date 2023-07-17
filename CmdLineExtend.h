@@ -18,9 +18,19 @@ void ReadLine(void);
 const char * StringFromFresult(FRESULT fresult);
 
 int Cmd_help(int argc, char *argv[]);
+int Cmd_ls(int argc, char *argv[]);
+int Cmd_test(int argc, char *argv[]);
+int Cmd_del(int argc, char *argv[]);
+int Cmd_get(int argc, char *argv[]);
+int Cmd_dump(int argc, char *argv[]);
+int Cmd_fft(int argc, char *argv[]);
+int Cmd_offset(int argc, char *argv[]);
+int Cmd_bdata(int argc, char *argv[]);
+int Cmd_freq(int argc, char *argv[]);
+int Cmd_time(int argc, char *argv[]);
+int Cmd_cls(int argc, char *argv[]);
 int Cmd_cat(int argc, char *argv[]);
 int Cmd_cd(int argc, char *argv[]);
-int Cmd_ls(int argc, char *argv[]);
 int Cmd_pwd(int argc, char *argv[]);
 int Cmd_ver(int argc, char *argv[]);
 

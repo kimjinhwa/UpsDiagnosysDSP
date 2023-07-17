@@ -1,6 +1,6 @@
-// Adc Data ¹öÆÛ´Â 1024°³
-// µ¥ÀÌ¶ó PWM :  8Khz
-// µû¶ó¼­ FFT¼öÇà °£°ÝÀº 1024*8khz
+// Adc Data ï¿½ï¿½ï¿½Û´ï¿½ 1024ï¿½ï¿½
+// ï¿½ï¿½ï¿½Ì¶ï¿½ PWM :  8Khz
+// ï¿½ï¿½ï¿½ï¿½ FFTï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ 1024*8khz
 
 #include "driverlib.h"
 #include "device.h"
@@ -26,7 +26,9 @@
 // Defines
 #pragma DATA_SECTION(RFFTin1Buff,"RFFTdata1")
 uint16_t RFFTin1Buff[2*RFFT_SIZE];
-//extern uint16_t RFFTin1Buff_test[2*RFFT_SIZE];
+
+#pragma DATA_SECTION(RFFTin1Buff_test,"RFFTdata1_test")
+uint16_t RFFTin1Buff_test[1024];
 
 #pragma DATA_SECTION(RFFTmagBuff,"RFFTdata2")
 float RFFTmagBuff[RFFT_SIZE/2+1];
@@ -132,7 +134,7 @@ uint16_t adcAResults_19[RESULTS_BUFFER_SIZE];   // Buffer for results
 uint16_t adcAResults_20[RESULTS_BUFFER_SIZE];   // Buffer for results
 
 //TIMER
-uint32_t cpuTimer0IntCount;
+uint32_t cpuTimer1IntCount;
 
 // FFT
 RFFT_F32_STRUCT rfft;
@@ -238,7 +240,7 @@ void fft_routine(void)
         freq =(float)F_PER_SAMPLE * (float)j;
         fft_result[nth][request_fft].freq = freq;
         j++;
-        i = j; //ÃÖ´ë°ªÀ» Ã£Àº ´ÙÀ½ ºÎÅÍ ´Ù½Ã ½ÃÀÛÇÑ´Ù.
+        i = j; //ï¿½Ö´ë°ªï¿½ï¿½ Ã£ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ù½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ñ´ï¿½.
         freq = RFFTmagBuff[i];
     }
 
@@ -301,18 +303,18 @@ inline void initBuffer()
     }
 }
 
-__interrupt void cpuTimer0ISR(void)
+__interrupt void cpuTimer1ISR(void)
 {
-    cpuTimer0IntCount++;
-    if(cpuTimer0IntCount > 5)
+    cpuTimer1IntCount++;
+    if(cpuTimer1IntCount > 5)
     {
-        cpuTimer0IntCount =0;
+        cpuTimer1IntCount =0;
         GPIO_togglePin(BLINKY_LED_GPIO );
     }
 
     Interrupt_clearACKGroup(INTERRUPT_ACK_GROUP1);
 }
-void init_timer0()
+void init_timer1()
 {
     uint32_t temp;
     temp = (uint32_t)(DEVICE_SYSCLK_FREQ / 1000000 * 1000000);
@@ -376,7 +378,7 @@ void setupCpu2(){
 }
 void cheeck_ipc()
 {
-    //IPC 21¹ø ½Ã°£¿äÃ»
+    //IPC 21ï¿½ï¿½ ï¿½Ã°ï¿½ï¿½ï¿½Ã»
     uint16_t i;
     uint16_t response=0;
     //uint32_t value;
@@ -387,20 +389,20 @@ void cheeck_ipc()
     for(i=0;i<8;i++)flashInitValue[i]= 0x00;
     command = HWREG(IPC_BASE +  IPC_O_RECVCOM)  ;
     data = HWREG(IPC_BASE +  IPC_O_RECVDATA)  ;
-    if(  ((HWREG(IPC_BASE + IPC_O_STS)) & IPC_SET_IPC30) == IPC_SET_IPC30 )   // CPU2¿¡¼­ ¹º°¡¸¦ ¿äÃ»ÇÑ´Ù.
+    if(  ((HWREG(IPC_BASE + IPC_O_STS)) & IPC_SET_IPC30) == IPC_SET_IPC30 )   // CPU2ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ã»ï¿½Ñ´ï¿½.
     {
         //IPCRECVCMD
         //IPCRECVDATA
         //IPCRECVDADDR
         //IPCLOCALREPLY
-        // CMD¿¡ 1ÀÇ °ªÀÌ ½Ç·Á ¿À¸é ÀÐ´Â ÁÖÆÄ¼ö¸¦ º¯°æÇÏ¶ó´Â ¸Þ¼¼Áö ÀÌ¸ç DATA¿¡¼­  °ªÀ» ÃëÇÑ´Ù.
-        // IPCRECVDATA¿¡ À¯È¿ÇÑ °ªÀÌ ½Ç·Á ¿À¸é ÀÌ °ªÀ¸·Î ¼³Á¤ÇÑ´Ù.
-        // IPCLOCALREPLY¿¡´Â ¼³Á¤ÈÄ °á°ú°ªÀ» ¸®ÅÏÇÑ´Ù.
-        //ÃÖÁ¾ÀûÀ¸·Î ACK¸¦ º¸³»¼­ LocalÀÇ Status¸¦ ClearÇÏ¸ç RemoteÀÇ Flag¸¦ ClearÇÑ´Ù.
+        // CMDï¿½ï¿½ 1ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ç·ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ð´ï¿½ ï¿½ï¿½ï¿½Ä¼ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï¶ï¿½ï¿½ ï¿½Þ¼ï¿½ï¿½ï¿½ ï¿½Ì¸ï¿½ DATAï¿½ï¿½ï¿½ï¿½  ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ñ´ï¿½.
+        // IPCRECVDATAï¿½ï¿½ ï¿½ï¿½È¿ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ç·ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ñ´ï¿½.
+        // IPCLOCALREPLYï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ñ´ï¿½.
+        //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ACKï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Localï¿½ï¿½ Statusï¿½ï¿½ Clearï¿½Ï¸ï¿½ Remoteï¿½ï¿½ Flagï¿½ï¿½ Clearï¿½Ñ´ï¿½.
         if(command==1)
         {
             data = HWREG(IPC_BASE +  IPC_O_RECVDATA)  ;
-            //¿©±â¼­ ÇÊ¿äÇÑ Æã¼ÇÀ» ¼öÇàÇÑ´Ù.
+            //ï¿½ï¿½ï¿½â¼­ ï¿½Ê¿ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ñ´ï¿½.
             flashInitValue[0] = (uint16_t)(data & 0x0000FFFF );
             flashInitValue[1] = data >> 16;
             if(data>0){
@@ -417,8 +419,8 @@ void cheeck_ipc()
         }
         else if(command==2)
         {
-            request_fft =data;// ÀÎÅÍ·´Æ®·çÆ¾¿¡°Ô º¹»çÇÒ ¹öÆÛÀÇ À§Ä¡¸¦ ¾Ë·Á ÁØ´Ù.
-            isMemCpyDoneFFT=0;  //ÀÌ·¸°Ô ÇÏ¸é ÀÎÅÍ·´Æ®¿¡¼­ ¸Þ¸ð¸®¸¦ º¹»çÇÑ´Ù.
+            request_fft =data;// ï¿½ï¿½ï¿½Í·ï¿½Æ®ï¿½ï¿½Æ¾ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ï¿½ï¿½ ï¿½Ë·ï¿½ ï¿½Ø´ï¿½.
+            isMemCpyDoneFFT=0;  //ï¿½Ì·ï¿½ï¿½ï¿½ ï¿½Ï¸ï¿½ ï¿½ï¿½ï¿½Í·ï¿½Æ®ï¿½ï¿½ï¿½ï¿½ ï¿½Þ¸ð¸®¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ñ´ï¿½.
             while(!response )
             {
                 response= isMemCpyDoneFFT;
@@ -427,24 +429,24 @@ void cheeck_ipc()
             HWREG(IPC_BASE +  IPC_O_SENDDATA) = ToggleCount ; //use Test Print
                                                                 //adc_index;// request_fft;//HWREGH( (unsigned long)srcAddr + index++);//100  ;
             HWREG(IPC_BASE +  IPC_O_ACK) = IPC_SET_IPC30  ;
-            DEVICE_DELAY_US(30);// CPU2¿¡¼­ µ¥ÀÌÅ¸¸¦ °®°í °¥¼ö ÀÖ´Â ½Ã°£À» ÁØ´Ù. µ¥ÀÌÅ¸ °¹¼ö = 5ns*((1024*2cycle) +4cycle)=
+            DEVICE_DELAY_US(30);// CPU2ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Å¸ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ö´ï¿½ ï¿½Ã°ï¿½ï¿½ï¿½ ï¿½Ø´ï¿½. ï¿½ï¿½ï¿½ï¿½Å¸ ï¿½ï¿½ï¿½ï¿½ = 5ns*((1024*2cycle) +4cycle)=
         }
     }
 
-    if(  ((HWREG(IPC_BASE + IPC_O_STS)) & IPC_SET_IPC21) == IPC_SET_IPC21 )   // ½Ã°£À» ¸Þ¸ð¸®¿¡ ¿Å°Ü ´Þ¶ó´Â ¿äÃ»À» ¹ÞÀ¸¸é ...
+    if(  ((HWREG(IPC_BASE + IPC_O_STS)) & IPC_SET_IPC21) == IPC_SET_IPC21 )   // ï¿½Ã°ï¿½ï¿½ï¿½ ï¿½Þ¸ð¸®¿ï¿½ ï¿½Å°ï¿½ ï¿½Þ¶ï¿½ï¿½ ï¿½ï¿½Ã»ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ...
     {
         ds1338_read_time(&time);
         HWREG(IPC_BASE + IPC_O_ACK) = IPC_ACK_IPC21;
     }
     if(  ((HWREG(IPC_BASE + IPC_O_STS)) & IPC_SET_IPC22) == IPC_SET_IPC22 )
     {
-        //FFT¸Þ¸ð¸®¸¦ ÀÐ±â À§ÇÔÀÌ´Ù.
-        //FFT°¡ ¼öÇàµÇÁö ¾Ê´Â »óÅÂ¿¡¼­ ÀÐÀ¸¸é µÇ´Ï±î.
-        //Àá±ñÀÇ Delay¸¦  ÁÖ¸é µÇ°Ú´Ù
+        //FFTï¿½Þ¸ð¸®¸ï¿½ ï¿½Ð±ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ì´ï¿½.
+        //FFTï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê´ï¿½ ï¿½ï¿½ï¿½Â¿ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ç´Ï±ï¿½.
+        //ï¿½ï¿½ï¿½ï¿½ï¿½ Delayï¿½ï¿½  ï¿½Ö¸ï¿½ ï¿½Ç°Ú´ï¿½
         HWREG(IPC_BASE + IPC_O_ACK) = IPC_ACK_IPC22;
         DEVICE_DELAY_US(20);
     }
-    if(  ((HWREG(IPC_BASE + IPC_O_STS)) & IPC_SET_IPC23) == IPC_SET_IPC23 )   // OFFSET°ªÀÌ º¯°æµÇ¾úÀ½À» ¾Ë·Á ÁØ´Ù.
+    if(  ((HWREG(IPC_BASE + IPC_O_STS)) & IPC_SET_IPC23) == IPC_SET_IPC23 )   // OFFSETï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ç¾ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ë·ï¿½ ï¿½Ø´ï¿½.
     {
         for(i=0;i<20;i++)HWREGH(userFlashStart+i)=offsetValue[i] ;
         DINT;
@@ -501,8 +503,8 @@ void main(void)
 
     initBuffer();
 
-    init_timer0();
-    Interrupt_register(INT_TIMER1, &cpuTimer0ISR);
+    init_timer1();
+    Interrupt_register(INT_TIMER1, &cpuTimer1ISR);
     Interrupt_register(INT_ADCA1, &adcA1ISR);
 
 #ifdef DAC_TEST_USED
@@ -547,7 +549,7 @@ void main(void)
     SysCtl_enablePeripheral(SYSCTL_PERIPH_CLK_TBCLKSYNC);
     EPWM_enableADCTrigger(EPWM1_BASE, EPWM_SOC_A);
     DEVICE_DELAY_US(128000);// 125*1024 128us at 8Khz    128us
-                              //ÇÑ¹øÀÇ ADC¸¦ ´Ù ÀÐ´Âµ¥ °É¸®´Â ½Ã°£ÀÌ´Ù.
+                              //ï¿½Ñ¹ï¿½ï¿½ï¿½ ADCï¿½ï¿½ ï¿½ï¿½ ï¿½Ð´Âµï¿½ ï¿½É¸ï¿½ï¿½ï¿½ ï¿½Ã°ï¿½ï¿½Ì´ï¿½.
 
 
     ds1338_read_time(&time);
@@ -563,10 +565,10 @@ void main(void)
     while(1)
     {
         ReadLineEx();// while Routine in this function
-        //cheeck_ipc();  // CPU2¿¡¼­ IPCÀÇ ¿äÃ»ÀÌ ÀÖ´ÂÁö¸¦ È®ÀÎÇÑ´Ù.
+        //cheeck_ipc();  // CPU2ï¿½ï¿½ï¿½ï¿½ IPCï¿½ï¿½ ï¿½ï¿½Ã»ï¿½ï¿½ ï¿½Ö´ï¿½ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½ï¿½Ñ´ï¿½.
         if(isMemCpyDoneFFT)// After memoryCopyComplete then excute fft_routine   68uS
         {
-            // CPU2¿¡¼­ »ç¿ëÇÏ°í ÀÖÁö ¾ÊÀ¸¸é...
+            // CPU2ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ï°ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½...
            if(((HWREG(IPC_BASE + IPC_O_STS)) & (1UL << (request_fft+1))) == 0U  )
            {
                 HWREG(IPC_BASE + IPC_O_SET)= 1UL << (request_fft+1);
@@ -576,7 +578,7 @@ void main(void)
                 if(request_fft >= 20)request_fft=0;
                 isMemCpyDoneFFT=0;
            }
-           else{};//ÇöÀçÀÇ ¸Þ¸ð¸®¸¦ CPU¿¡¼­ »ç¿ëÇÏ°í ÀÖ´Â°æ¿ì..
+           else{};//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Þ¸ð¸®¸ï¿½ CPUï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ï°ï¿½ ï¿½Ö´Â°ï¿½ï¿½..
         }
     }
 }
@@ -790,7 +792,7 @@ __interrupt void adcA1ISR(void)  // note_2
         index = adc_index;
         for(i=0;i < RESULTS_BUFFER_SIZE;i++){
             if( index >= RESULTS_BUFFER_SIZE ) index=0;
-            //¸Þ¸ð¸®´Â ÇöÀçÀ§Ä¡ ´ÙÀ½µ¥ÀÌÅ¸°¡ °¡Àå ¸¶Áö¸· µ¥ÀÌÅ¸ÀÌ´Ù ÀÌ¹Ì Áõ°¡°¡ µÇ¾î ÀÖ´Â »óÅÂÀÌ´Ù.
+            //ï¿½Þ¸ð¸®´ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¡ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Å¸ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Å¸ï¿½Ì´ï¿½ ï¿½Ì¹ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ç¾ï¿½ ï¿½Ö´ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ì´ï¿½.
             HWREGH(RFFTin1Buff+i) = HWREGH( (unsigned long)srcAddr + index++);
         }
         isMemCpyDoneFFT  = 1;

@@ -14,3 +14,4 @@ encoding//CPU1_STANDALONE/subdir_rules.mk=UTF-8
 encoding//CPU1_STANDALONE/subdir_vars.mk=UTF-8
 encoding//CPU1_STANDALONE/uart/subdir_rules.mk=UTF-8
 encoding//CPU1_STANDALONE/uart/subdir_vars.mk=UTF-8
+encoding/CmdLineExtend.c=UTF-8
