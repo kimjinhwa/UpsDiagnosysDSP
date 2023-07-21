@@ -162,6 +162,8 @@ SECTIONS
     #endif
 
 #endif
+   /* Flash Programming Buffer */
+   BufferDataSection : > RAMD1, PAGE = 1, ALIGN(8)
 
    /* The following section definitions are required when using the IPC API Drivers */
     GROUP : > CPU1TOCPU2RAM, PAGE = 1

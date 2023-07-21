@@ -1,14 +1,14 @@
-//###########################################################################
+//##############################################################################
 //
 // FILE:   cmdline.h
 //
 // TITLE:  Prototypes for command line processing functions.
 //
-//###########################################################################
-// $TI Release: F2837xD Support Library v3.11.00.00 $
-// $Release Date: Sun Oct  4 15:55:24 IST 2020 $
+//##############################################################################
+//
+// $Release Date: $
 // $Copyright:
-// Copyright (C) 2013-2020 Texas Instruments Incorporated - http://www.ti.com/
+// Copyright (C) 2013-2023 Texas Instruments Incorporated - http://www.ti.com/
 //
 // Redistribution and use in source and binary forms, with or without 
 // modification, are permitted provided that the following conditions 
@@ -38,28 +38,28 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // $
-//###########################################################################
+//##############################################################################
 
-#ifndef __CMDLINE_H__
-#define __CMDLINE_H__
+#ifndef CMDLINE_H
+#define CMDLINE_H
 
-//*****************************************************************************
+//******************************************************************************
 //
 // If building with a C++ compiler, make all of the definitions in this header
 // have a C binding.
 //
-//*****************************************************************************
+//******************************************************************************
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 
-//*****************************************************************************
+//******************************************************************************
 //
 //! \addtogroup cmdline_api
 //! @{
 //
-//*****************************************************************************
+//******************************************************************************
 
 //
 //! Defines the value that is returned if the command is not found.
@@ -86,9 +86,11 @@ extern "C"
 //
 typedef int (*pfnCmdLine)(int argc, char *argv[]);
 
+//******************************************************************************
 //
 //! Structure for an entry in the command list table.
 //
+//******************************************************************************
 typedef struct
 {
     //
@@ -108,35 +110,37 @@ typedef struct
 }
 tCmdLineEntry;
 
+//******************************************************************************
 //
 //! This is the command table that must be provided by the application.  The
 //! last element of the array must be a structure whose pcCmd field contains
 //! a NULL pointer.
 //
+//******************************************************************************
 extern tCmdLineEntry g_psCmdTable[];
 
-//*****************************************************************************
+//******************************************************************************
 //
 // Close the Doxygen group.
 //! @}
 //
-//*****************************************************************************
+//******************************************************************************
 
 //
 // Function Prototypes
 //
 extern int CmdLineProcess(char *pcCmdLine);
 
-//*****************************************************************************
+//******************************************************************************
 //
 // Mark the end of the C bindings section for C++ compilers.
 //
-//*****************************************************************************
+//******************************************************************************
 #ifdef __cplusplus
 }
 #endif
 
-#endif // __CMDLINE_H__
+#endif // CMDLINE_H
 
 //
 // End of file

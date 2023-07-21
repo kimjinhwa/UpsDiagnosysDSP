@@ -13,8 +13,8 @@
 #include "F2837xD_device.h"
 
 #include "F021_F2837xD_C28x.h"
-#define userFlashStart         0xBE000
+#define userFlashStart         0xBC000
 #define userFlashLenght         0x100
 
-void CallFlashAPI(uint32_t flashAddress, uint16_t *Buffer,uint16_t len);
+void CallFlashAPI(uint16_t address,uint16_t *BufferData,uint16_t len);
 #endif /* CPUFLASHMEMORY_H_ */

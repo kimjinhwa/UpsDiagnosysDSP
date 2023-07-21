@@ -1,12 +1,12 @@
-// Adc Data ���۴� 1024��
-// ���̶� PWM :  8Khz
-// ���� FFT���� ������ 1024*8khz
+// Adc Data 버퍼는 1024개
+// 데이라 PWM :  8Khz
+// 따라서 FFT수행 간격은 1024*8khz
 
 #include "driverlib.h"
 #include "device.h"
 
 #include <string.h>
-#include "cmdlineExtend.h"
+#include "uart/cmdlineExtend.h"
 #include "c2000ware_libraries.h"
 
 #include "board.h"
@@ -24,6 +24,11 @@
 
 //#include "dmaCopy.h"
 // Defines
+#pragma DATA_SECTION(Buffer,"BufferDataSection");
+#define  WORDS_IN_FLASH_BUFFER    0xFF
+uint16   Buffer[WORDS_IN_FLASH_BUFFER + 1];
+uint32   *Buffer32 = (uint32 *)Buffer;
+
 #pragma DATA_SECTION(RFFTin1Buff,"RFFTdata1")
 uint16_t RFFTin1Buff[2*RFFT_SIZE];
 
@@ -64,13 +69,12 @@ float RFFTF32Coef[RFFT_SIZE];
 #pragma DATA_SECTION(adcAResults_19,"ADCBUFFER5")
 #pragma DATA_SECTION(adcAResults_20,"ADCBUFFER5")
 
-#define userFlashStart         0xBE000
 
 // Save PWM Frequency For ADC Period.
 // Saved 4byte, 00 01 Reading Frequency
 // for example at 80,0000
 // 00 -> 0x3880 01-> 0x0001
-#define SystemInitFlash         0xBE000+24
+#define SystemInitFlash         0xBC000
 
 
 struct st_fft_result {
@@ -92,14 +96,17 @@ struct rtctime_t time;
 uint16_t request_fft;
 //RtcTime
 
-#define RAM_BANK_SIZE  0x00010000
-#define RAM_ADCBUFFER1 0x00018000
-#define RAM_ADCBUFFER2 0x00019000
-#define RAM_ADCBUFFER3 0x0001A000
-#define RAM_ADCBUFFER4 0x0001B000
+//#define RAM_BANK_SIZE  0x00010000
+//#define RAM_ADCBUFFER1 0x00018000
+//#define RAM_ADCBUFFER2 0x00019000
+//#define RAM_ADCBUFFER3 0x0001A000
+//#define RAM_ADCBUFFER4 0x0001B000
 
 #define BLINKY_LED_GPIO     81
-#define PULSE_OUTPUT_GPIO 18
+
+// Tempory use GPIO72 for Frequency view
+//#define PULSE_OUTPUT_GPIO 18
+#define PULSE_OUTPUT_GPIO 72
 
 #define EPSILON         0.1
 
@@ -157,6 +164,7 @@ uint16_t adc_index;                              // Index into result buffer
 //    SCIprintf("Test");
 //}
 
+void initSCICFIFO(void);
 void initADC(void);
 void initEPWM(void);
 void EPWM_changeClock(uint32_t base, float32_t ClkInHz );
@@ -376,84 +384,88 @@ void setupCpu2(){
     //DevCfgRegs.CPUSEL5.bit.SCI_C = 1;
     //EDIS;
 }
+
+void getDumpData(uint32_t requestPos)
+{
+    uint16_t response=0;
+    request_fft =(uint16_t )requestPos;// ���ͷ�Ʈ��ƾ���� ������ ������ ��ġ�� �˷� �ش�.
+    isMemCpyDoneFFT=0;  //�̷��� �ϸ� ���ͷ�Ʈ���� �޸𸮸� �����Ѵ�.
+    while(!response )
+    {
+        response= isMemCpyDoneFFT;
+        SysCtl_delay(1);
+    }
+    DEVICE_DELAY_US(30);// CPU2���� ����Ÿ�� ���� ���� �ִ� �ð��� �ش�. ����Ÿ ���� = 5ns*((1024*2cycle) +4cycle)=
+
+}
 void cheeck_ipc()
 {
-    //IPC 21�� �ð���û
-    uint16_t i;
-    uint16_t response=0;
+    //IPC 21번 시간요청
+    //uint16_t i;
+    //uint16_t response=0;
     //uint32_t value;
-    uint32_t command;
-    uint32_t data;
-    uint16_t flashInitValue[8];// [0] store frequency High 16bit
+    //uint32_t command;
+    //uint32_t data;
+    //uint16_t flashInitValue[8];// [0] store frequency High 16bit
                                // [1] store Frequency Low 16Bit
-    for(i=0;i<8;i++)flashInitValue[i]= 0x00;
-    command = HWREG(IPC_BASE +  IPC_O_RECVCOM)  ;
-    data = HWREG(IPC_BASE +  IPC_O_RECVDATA)  ;
-    if(  ((HWREG(IPC_BASE + IPC_O_STS)) & IPC_SET_IPC30) == IPC_SET_IPC30 )   // CPU2���� ������ ��û�Ѵ�.
-    {
-        //IPCRECVCMD
-        //IPCRECVDATA
-        //IPCRECVDADDR
-        //IPCLOCALREPLY
-        // CMD�� 1�� ���� �Ƿ� ���� �д� ���ļ��� �����϶�� �޼��� �̸� DATA����  ���� ���Ѵ�.
-        // IPCRECVDATA�� ��ȿ�� ���� �Ƿ� ���� �� ������ �����Ѵ�.
-        // IPCLOCALREPLY���� ������ ������� �����Ѵ�.
-        //���������� ACK�� ������ Local�� Status�� Clear�ϸ� Remote�� Flag�� Clear�Ѵ�.
-        if(command==1)
-        {
-            data = HWREG(IPC_BASE +  IPC_O_RECVDATA)  ;
-            //���⼭ �ʿ��� ����� �����Ѵ�.
-            flashInitValue[0] = (uint16_t)(data & 0x0000FFFF );
-            flashInitValue[1] = data >> 16;
-            if(data>0){
-                DINT;
-                CallFlashAPI(userFlashStart+24,flashInitValue,8);
-                EINT;
-                //initEPWM();
-                //EPWM_changeClock(EPWM1_BASE,(float32_t) data);
-            }
-            data = HWREG(userFlashStart+24);
-            if(data == 0xFFFFFFFF) data  = ADC_SAMPLING_FREQ;
-            HWREG(IPC_BASE +  IPC_O_LOCALREPLY) = data  ;//SystemInitFlash
-            HWREG(IPC_BASE +  IPC_O_ACK) = IPC_SET_IPC30  ;
-        }
-        else if(command==2)
-        {
-            request_fft =data;// ���ͷ�Ʈ��ƾ���� ������ ������ ��ġ�� �˷� �ش�.
-            isMemCpyDoneFFT=0;  //�̷��� �ϸ� ���ͷ�Ʈ���� �޸𸮸� �����Ѵ�.
-            while(!response )
-            {
-                response= isMemCpyDoneFFT;
-                SysCtl_delay(1);
-            }
-            HWREG(IPC_BASE +  IPC_O_SENDDATA) = ToggleCount ; //use Test Print
-                                                                //adc_index;// request_fft;//HWREGH( (unsigned long)srcAddr + index++);//100  ;
-            HWREG(IPC_BASE +  IPC_O_ACK) = IPC_SET_IPC30  ;
-            DEVICE_DELAY_US(30);// CPU2���� ����Ÿ�� ���� ���� �ִ� �ð��� �ش�. ����Ÿ ���� = 5ns*((1024*2cycle) +4cycle)=
-        }
-    }
+//    for(i=0;i<8;i++)flashInitValue[i]= 0x00;
+//    command = HWREG(IPC_BASE +  IPC_O_RECVCOM)  ;
+//    data = HWREG(IPC_BASE +  IPC_O_RECVDATA)  ;
+//    if(  ((HWREG(IPC_BASE + IPC_O_STS)) & IPC_SET_IPC30) == IPC_SET_IPC30 )   // CPU2���� ������ ��û�Ѵ�.
+//    {
+//        //IPCRECVCMD
+//        //IPCRECVDATA
+//        //IPCRECVDADDR
+//        //IPCLOCALREPLY
+//        // CMD에 1의 값이 실려 오면 읽는 주파수를 변경하라는 메세지 이며 DATA에서  값을 취한다.
+//        // IPCRECVDATA에 유효한 값이 실려 오면 이 값으로 설정한다.
+//        // IPCLOCALREPLY에는 설정후 결과값을 리턴한다.
+//        //최종적으로 ACK를 보내서 Local의 Status를 Clear하며 Remote의 Flag를 Clear한다.
+//
+//        //        if(command==1)
+//        //        {
+//        ////            data = HWREG(IPC_BASE +  IPC_O_RECVDATA)  ;
+//        ////            //여기서 필요한 펑션을 수행한다.
+//        ////            flashInitValue[0] = (uint16_t)(data & 0x0000FFFF );
+//        ////            flashInitValue[1] = data >> 16;
+//        ////            if(data>0){
+//        ////                DINT;
+//        ////                CallFlashAPI(userFlashStart+24,flashInitValue,8);
+//        ////                EINT;
+//        ////                //initEPWM();
+//        ////                //EPWM_changeClock(EPWM1_BASE,(float32_t) data);
+//        ////            }
+//        ////            data = HWREG(userFlashStart+24);
+//        ////            if(data == 0xFFFFFFFF) data  = ADC_SAMPLING_FREQ;
+//        ////            HWREG(IPC_BASE +  IPC_O_LOCALREPLY) = data  ;//SystemInitFlash
+//        ////            HWREG(IPC_BASE +  IPC_O_ACK) = IPC_SET_IPC30  ;
+//        //        }
+//        //        else if(command==2)
+//        //        {
+//        //        }
+//    }
 
-    if(  ((HWREG(IPC_BASE + IPC_O_STS)) & IPC_SET_IPC21) == IPC_SET_IPC21 )   // �ð��� �޸𸮿� �Ű� �޶�� ��û�� ������ ...
-    {
-        ds1338_read_time(&time);
-        HWREG(IPC_BASE + IPC_O_ACK) = IPC_ACK_IPC21;
-    }
-    if(  ((HWREG(IPC_BASE + IPC_O_STS)) & IPC_SET_IPC22) == IPC_SET_IPC22 )
-    {
-        //FFT�޸𸮸� �б� �����̴�.
-        //FFT�� ������� �ʴ� ���¿��� ������ �Ǵϱ�.
-        //����� Delay��  �ָ� �ǰڴ�
-        HWREG(IPC_BASE + IPC_O_ACK) = IPC_ACK_IPC22;
-        DEVICE_DELAY_US(20);
-    }
-    if(  ((HWREG(IPC_BASE + IPC_O_STS)) & IPC_SET_IPC23) == IPC_SET_IPC23 )   // OFFSET���� ����Ǿ����� �˷� �ش�.
-    {
-        for(i=0;i<20;i++)HWREGH(userFlashStart+i)=offsetValue[i] ;
-        DINT;
-        CallFlashAPI(userFlashStart,offsetValue,24);
-        EINT;
-        HWREG(IPC_BASE + IPC_O_ACK) = IPC_ACK_IPC23;
-    }
+//    if(  ((HWREG(IPC_BASE + IPC_O_STS)) & IPC_SET_IPC21) == IPC_SET_IPC21 )   // �ð��� �޸𸮿� �Ű� �޶�� ��û�� ������ ...
+//    {
+//        ds1338_read_time(&time);
+//        HWREG(IPC_BASE + IPC_O_ACK) = IPC_ACK_IPC21;
+//    }
+//    if(  ((HWREG(IPC_BASE + IPC_O_STS)) & IPC_SET_IPC22) == IPC_SET_IPC22 )
+//    {
+//        //FFT메모리를 읽기 위함이다.
+//        //FFT가 수행되지 않는 상태에서 읽으면 되니까.
+//        //잠깐의 Delay를  주면 되겠다
+//        HWREG(IPC_BASE + IPC_O_ACK) = IPC_ACK_IPC22;
+//        DEVICE_DELAY_US(20);
+//    }
+//    if(  ((HWREG(IPC_BASE + IPC_O_STS)) & IPC_SET_IPC23) == IPC_SET_IPC23 )   // OFFSET���� ����Ǿ����� �˷� �ش�.
+//    {
+//        for(i=0;i<20;i++)HWREGH(userFlashStart+i)=offsetValue[i] ;
+//        DINT;
+//        CallFlashAPI(userFlashStart,offsetValue,24);
+//        EINT;
+//        HWREG(IPC_BASE + IPC_O_ACK) = IPC_ACK_IPC23;
+//    }
 
 }
 
@@ -553,10 +565,10 @@ void main(void)
 
 
     ds1338_read_time(&time);
-    if(time.year < 23 ){
-        make_time(&time,23,7,12,15,01,01);
-        ds1338_write_time(&time);
-    }
+//    if(time.year < 23 ){
+//        make_time(&time,23,7,12,15,01,01);
+//        ds1338_write_time(&time);
+//    }
 
     myFunction();
     SCIprintf("\n\nUSB Mass Storage Host program\n");
@@ -564,11 +576,11 @@ void main(void)
     initUsbDriver();
     while(1)
     {
-        ReadLineEx();// while Routine in this function
+        ReadLineEx();// Check if there is Serial input by user
         //cheeck_ipc();  // CPU2���� IPC�� ��û�� �ִ����� Ȯ���Ѵ�.
         if(isMemCpyDoneFFT)// After memoryCopyComplete then excute fft_routine   68uS
         {
-            // CPU2���� ����ϰ� ���� ������...
+            // if CPU2 not use
            if(((HWREG(IPC_BASE + IPC_O_STS)) & (1UL << (request_fft+1))) == 0U  )
            {
                 HWREG(IPC_BASE + IPC_O_SET)= 1UL << (request_fft+1);
@@ -578,7 +590,7 @@ void main(void)
                 if(request_fft >= 20)request_fft=0;
                 isMemCpyDoneFFT=0;
            }
-           else{};//������ �޸𸮸� CPU���� ����ϰ� �ִ°��..
+           else{};// Memory is using by CPU1
         }
     }
 }
@@ -651,7 +663,7 @@ void EPWM_changeClock(uint32_t base, float32_t ClkInHz )
 // Function to configure ePWM1 to generate the SOC.
 void initEPWM(void)
 {
-    pwmFrequency= (float32_t) HWREG(userFlashStart+24);
+    pwmFrequency= 1000 * (float32_t) HWREGH(userFlashStart+24);
     if(pwmFrequency < 0  || pwmFrequency > 2000000 ) pwmFrequency= ADC_SAMPLING_FREQ;
 
     //EPWM1_BASE
@@ -783,7 +795,7 @@ __interrupt void adcA1ISR(void)  // note_2
     }
     else fail++;
     adc_index++;
-    // Set the memoryCopyComplete flag if the buffer is full:w
+    // Set the memoryCopyComplete flag if the buffer is full
 
     int i;
     if(!isMemCpyDoneFFT ){
@@ -792,7 +804,7 @@ __interrupt void adcA1ISR(void)  // note_2
         index = adc_index;
         for(i=0;i < RESULTS_BUFFER_SIZE;i++){
             if( index >= RESULTS_BUFFER_SIZE ) index=0;
-            //�޸𸮴� ������ġ ��������Ÿ�� ���� ������ ����Ÿ�̴� �̹� ������ �Ǿ� �ִ� �����̴�.
+            //메모리는 현재위치 다음데이타가 가장 마지막 데이타이다 이미 증가가 되어 있는 상태이다.
             HWREGH(RFFTin1Buff+i) = HWREGH( (unsigned long)srcAddr + index++);
         }
         isMemCpyDoneFFT  = 1;
@@ -810,7 +822,6 @@ __interrupt void adcA1ISR(void)  // note_2
     }
     if (ToggleCount >= pwmFrequency/2)
     {
-        GPIO_togglePin(PULSE_OUTPUT_GPIO );
         GPIO_togglePin(BLINKY_LED_GPIO );
         ToggleCount = 0;
     }
@@ -837,6 +848,20 @@ __interrupt void adcA1ISR(void)  // note_2
     Interrupt_clearACKGroup(INTERRUPT_ACK_GROUP1);
 }
 
+void initSCICFIFO(void){
+
+    GPIO_setMasterCore(28, GPIO_CORE_CPU1);
+    GPIO_setPinConfig(GPIO_90_SCIRXDC);
+    GPIO_setDirectionMode(90, GPIO_DIR_MODE_IN);
+    GPIO_setPadConfig(90, GPIO_PIN_TYPE_STD);
+    GPIO_setQualificationMode(90, GPIO_QUAL_ASYNC);
+
+    GPIO_setMasterCore(89, GPIO_CORE_CPU1);
+    GPIO_setPinConfig(GPIO_89_SCITXDC);
+    GPIO_setDirectionMode(89, GPIO_DIR_MODE_OUT);
+    GPIO_setPadConfig(89, GPIO_PIN_TYPE_STD);
+    GPIO_setQualificationMode(89, GPIO_QUAL_ASYNC);
+}
 //******************************************************************************
 //
 //! Host interrupt service routine wrapper to make ISR compatible with

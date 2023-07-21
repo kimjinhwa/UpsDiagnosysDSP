@@ -5,7 +5,7 @@
  *      Author: STELLA
  */
 #include "cmdLineExtend.h"
-#include "version.h"
+#include "../version.h"
 #include "stdlib.h"
 #include "stdio.h"
 #include "DiagnosysUps.h"
@@ -122,7 +122,7 @@ tCmdLineEntry g_psCmdTable[] =
     { "dump",   Cmd_dump,   " : Show Memory RFFTin1Buff  :ex) dump -h 0 > dump01.txt " },
     { "fft",    Cmd_fft,    " : Get FFT Data " },
     { "offset", Cmd_offset, " : Offset -s [0,19]  Adc for 0 to 19 " },
-    { "freq",   Cmd_freq,   " : Change Read Frequency for ADC [hz] " },
+    { "freq",   Cmd_freq,   " : Change Read Frequency for ADC [hz] \nUsage for 15Khz : freq -s 15" },
     { "bdata",  Cmd_bdata,  " : Get Hex Data -> For Dedicated software "},
     { "time",   Cmd_time,  " : Show Now System Time"},
     { "cls",    Cmd_cls,    " : clear screen" },
@@ -177,6 +177,7 @@ static uint16_t crc16(const uint8_t *data, uint16_t size);
 static uint16_t crc_update(uint16_t crc_in, int incr);
 int memory_dump(unsigned long   startAddress,uint16_t mode,char* filename);
 char * ftoa(float f, char * buf, int precision);
+void getDumpData(uint32_t requestPos);
 
 volatile tState g_eState;
 volatile tState g_eUIState;
@@ -675,10 +676,10 @@ int Cmd_test(int argc, char *argv[])
          br=10;
          f_write(&g_sFileObject, buffer, br, &bw);
          f_close(&g_sFileObject);
-         SCIprintf("File Write OK  %d",bw);
+         SCIprintf("File Write OK  %d",(int32_t)bw);
          return 0;
      }
-     SCIprintf("File Write Fail  %d",bw);
+     SCIprintf("File Write Fail  %d",(int32_t)bw);
      return 0;
 }
 int Cmd_del(int argc, char *argv[])
@@ -778,8 +779,6 @@ int Cmd_get(int argc, char *argv[])
         next =0;
         chunk->payload[usBytesRead] = 0; //g_cTmpBuf[usBytesRead] = 0;
         memset(chunk->payload + usBytesRead, 0xFF, sizeof(chunk->payload) - usBytesRead); //memcpy(chunk->payload, g_cTmpBuf, usBytesRead);
-        //chunk->crcH = (crc16(chunk->payload, sizeof(chunk->payload)) >> 8) & 0xFF; //chunk->crc = swap16(crc16(chunk->payload, sizeof(chunk->payload)));
-        //chunk->crcL = (crc16(chunk->payload, sizeof(chunk->payload)) ) & 0xFF;
         chunk->crcH = (crc16(chunk->payload, sizeof(chunk->payload)) >> 8) & 0xFF; //chunk->crc = swap16(crc16(chunk->payload, sizeof(chunk->payload)));
         chunk->crcL = (crc16(chunk->payload, sizeof(chunk->payload)) ) & 0xFF;
         ui8Char=sizeof(xmodem_chunk);
@@ -876,17 +875,16 @@ int Cmd_dump(int argc, char *argv[])
     }
 
 
-    HWREG(IPC_BASE +  IPC_O_SENDCOM)  = 2UL ;
-    HWREG(IPC_BASE +  IPC_O_SENDDATA)  = requestPos;
-    HWREG(IPC_BASE + IPC_O_SET) =  IPC_SET_IPC30 ;//
-    SCIprintf("Here\r\n");
-    while(HWREG(IPC_BASE + IPC_O_FLG) &  IPC_FLG_IPC30 ){};
-
-
-
-    for(i=0;i < 1024;i++){
-        HWREGH(RFFTin1Buff_test+i) = HWREGH(RFFTin1Buff +i);
-    }
+    getDumpData(requestPos);
+//    HWREG(IPC_BASE +  IPC_O_SENDCOM)  = 2UL ;
+//    HWREG(IPC_BASE +  IPC_O_SENDDATA)  = requestPos;
+//    HWREG(IPC_BASE + IPC_O_SET) =  IPC_SET_IPC30 ;//
+//    SCIprintf("Here\r\n");
+//    while(HWREG(IPC_BASE + IPC_O_FLG) &  IPC_FLG_IPC30 ){};
+//
+//    for(i=0;i < 1024;i++){
+//        HWREGH(RFFTin1Buff_test+i) = HWREGH(RFFTin1Buff +i);
+//    }
     int16_t ret = memory_dump((unsigned long)&RFFTin1Buff_test,displaymode,filename);
     if(ret == FR_OK) SCIprintf("File Creation OK..!(%d)\r\n",HWREG(IPC_BASE +  IPC_O_RECVDATA) );
     else     SCIprintf(" File Creation Error\r\n");
@@ -915,7 +913,7 @@ int Cmd_fft(int argc, char *argv[])
     {
        //int nowPos=request_fft;
        memset(buffer,0x00,sizeof(buffer));
-       sprintf((char *)&buffer,"fft_%d\t ",i); len =strlen((char *)buffer); SCIwrite((char *)buffer,len);
+       sprintf((char *)&buffer,"fft_%d\t ",(int32_t)i); len =strlen((char *)buffer); SCIwrite((char *)buffer,len);
        memset(buffer,0x00,sizeof(buffer));
        ftoa(fft_result[0][i].THD, (char *)buffer, 3); len =strlen((char *)buffer); SCIwrite((char *)buffer,len); SCIprintf("\t");
 
@@ -983,9 +981,9 @@ int Cmd_offset(int argc, char *argv[])
     {
 
         //#define userFlashStart         0xBE000
-        CallFlashAPI(0xBE000,offsetValue,24);  //변경된 옵셋값을 변경하여 메모리에 써 넣는다.
+        CallFlashAPI(0,offsetValue,24);  //변경된 옵셋값을 변경하여 메모리에 써 넣는다.
                                        //이 값은 시스템이 재 부팅시에 반영되게 한다.
-        SCIprintf("ADC NO is  %d \r\n",requestPos);
+        SCIprintf("ADC NO is  %d \r\n",(int32_t)requestPos);
         //SCIPrint("ADCA OFFTRIM IS  %d =\r\n",HWREGH(ADCA_BASE + ADC_O_OFFTRIM ));
         //SCIPrint("ADCA OFFTRIM IS  %d \r\n",offsetValue[pos]);
         SCIprintf("ADCA OFFTRIM VALUE IS %d \r\n",HWREGH(0xBE000 + requestPos ));
@@ -995,7 +993,7 @@ int Cmd_offset(int argc, char *argv[])
     {
         SCIprintf(("Adc Before Offet Value\n\r"));
         //for(i=0;i<20;i++){SCIPrint("Adc");SCIPrintltoa(i,16);SCIPrint("\t");}
-        for(i=0;i<20;i++){SCIprintf("Adc %d\t",i);}
+        for(i=0;i<20;i++){SCIprintf("Adc %d\t",(int32_t)i);}
         SCIprintf("\n\r");
         //for(i=0;i<20;i++){SCIPrintltoa(offsetValue[i],16);SCIPrint("\t");}
         for(i=0;i<20;i++){SCIprintf("%04X\t",offsetValue[i]);}
@@ -1067,6 +1065,7 @@ int Cmd_time(int argc, char *argv[])
     BYTE buffer[30];
     uint16_t len;
 
+    ds1338_read_time(&time);
     memset(buffer, 0x00, sizeof(buffer));
     sprintf((char *)&buffer, "%d-%d-%d %d:%d:%d", 2000 + time.year, time.month, time.day,
             time.hour, time.minute, time.second);
@@ -1075,39 +1074,36 @@ int Cmd_time(int argc, char *argv[])
     SCIprintf("\r\n");
     return 0;
 }
+
 int Cmd_freq(int argc, char *argv[])
 {
-    uint32_t freq=0;
-    uint16_t i;
-    uint16_t setmode;
-    for(i = 1; i<argc;i++){
-        if(strcmp(argv[i],"-s")==0)      setmode= 1;
-        else if(   argv[i][0] >= 0x30 &&  argv[i][0] <= 0x39) freq = atol(argv[i]);
+    uint16_t freq=0;
+    uint16_t setmode=0;
+    // [1] store Frequency Low 16Bit
+    SCIprintf("\nChange ADC PWM Frequency(%d)\n",(int32_t)argc);
+    if(argc > 2 )
+    {
+        if(strcmp(argv[1],"-s")==0)      setmode= 1;
+        if(   argv[2][0] >= 0x30 &&  argv[2][0] <= 0x39)// If start character is number.
+            freq = atol(argv[2]);
+        else freq = ADC_SAMPLING_FREQ/1000;
     }
+
     if(setmode){
-        HWREG(IPC_BASE +  IPC_O_SENDCOM)  = 1UL ;
-        HWREG(IPC_BASE +  IPC_O_SENDDATA)  = freq;
-        HWREG(IPC_BASE + IPC_O_SET) =  IPC_SET_IPC30 ;//
-        while(HWREG(IPC_BASE + IPC_O_FLG) &  IPC_FLG_IPC30 ){};
-        SCIprintf("Req to Change Frequency :  %ld \r\n",freq );
-        freq = HWREG(IPC_BASE +  IPC_O_REMOTEREPLY);
-        SCIprintf("After Change Frequency :  %ld \r\n",freq );
+        //DINT;
+        CallFlashAPI(24,&freq,1);
+        //EINT;
+        SCIprintf("Requested Change Value is  :  %dKhz \r\n",(int32_t)freq );
+        freq = HWREGH(userFlashStart+24);
+        SCIprintf("After Change Frequency is   %dKhz \r\n",(int32_t)freq );
     }
     else
     {
-        SCIprintf("Reading Frequency \r\n",freq );
-        HWREG(IPC_BASE +  IPC_O_SENDCOM)  = 1UL ;
-        HWREG(IPC_BASE +  IPC_O_SENDDATA)  = 0;
-        HWREG(IPC_BASE + IPC_O_SET) =  IPC_SET_IPC30 ;//
-
-        while((HWREG(IPC_BASE + IPC_O_FLG) & IPC_FLG_IPC30)  ) { };  // 요청된 처리가 완료 되기를 기다린다.
-
-        freq = HWREG(IPC_BASE +  IPC_O_REMOTEREPLY);
-        SCIprintf("Now Frequency :  %ld \r\n",freq );
-
-        SCIprintf("Usage: freq -s 80000\r\n");
+        freq = HWREGH(userFlashStart+24);
+        if(freq ==  0xffff) freq= (uint16_t)(ADC_SAMPLING_FREQ/1000); // Not defind, So return default Frequency
+        SCIprintf("Now Frequency :  %dKz \r\n",(int32_t)freq );
     }
-   return 0;
+    return 0;
 }
 int Cmd_cls(int argc, char *argv[])
 {

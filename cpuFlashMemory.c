@@ -11,162 +11,97 @@
 
 
 #define CPUCLK_FREQUENCY        200
+#define Bzero_SectorM_start         0x0BC000
+#define Bzero_SectorM_End           0x0BCFFF
 
 extern void InitFlash(void);
 extern void SeizeFlashPump(void);
 
+
 #define ramFuncSection ".TI.ramfunc"
-#pragma CODE_SECTION(CallFlashAPI, ramFuncSection);
-#pragma CODE_SECTION(Error,ramFuncSection);
+#pragma CODE_SECTION(writeCallFlashAPI, ramFuncSection);
+#pragma CODE_SECTION(FlahsError,ramFuncSection);
+void writeCallFlashAPI(uint32_t flashAddress,uint16_t len);
 
-//#define  WORDS_IN_FLASH_BUFFER    0xFF
-//uint16   Buffer[WORDS_IN_FLASH_BUFFER + 1];
+#define  WORDS_IN_FLASH_BUFFER    0xFF
+extern uint16   Buffer[WORDS_IN_FLASH_BUFFER + 1];
+extern uint32   *Buffer32 ;
 
-
-void Error(Fapi_StatusType status)
+void FlahsError(Fapi_StatusType status)
 {
     __asm("    ESTOP0");
 }
-//userFlashStart
-void CallFlashAPI(uint32_t flashAddress, uint16_t *Buffer,uint16_t len)
+
+void CallFlashAPI(uint16_t address,uint16_t *BufferData,uint16_t len)
 {
-    //DCSMCOMMON_BASE
-
-    uint16_t repeatCount=0;
-    uint32   *Buffer32 ;
-
-    //Flash_disableECC(FLASH0ECC_BASE);
-
-    //Flash_initModule(FLASH0ECC_BASE, FLASH0ECC_BASE, 15);
-
-     EALLOW;
-     DcsmCommonRegs.FLSEM.all = 0xA501;
-     EDIS;
-
+    uint16_t i;
     InitFlash();
     SeizeFlashPump();
 
-    Flash_setPumpPowerMode(FLASH0ECC_BASE,FLASH_PUMP_PWR_ACTIVE);
+    for(i=0; i <= WORDS_IN_FLASH_BUFFER; i++)
+    {
+        Buffer[i] = HWREGH(userFlashStart+i); //Read Data from flash to ram by 16BIT
+    }
+    for(i=0; i < len; i++)
+    {
+        Buffer[address + i] = BufferData[i]; // Copy data to write  , 16Bit
+    }
+    writeCallFlashAPI(Bzero_SectorM_start,8);
+}
+void writeCallFlashAPI(uint32_t flashAddress,uint16_t len)
+{
 
+    uint16_t i;
+    uint32 u32Index = 0;
     Fapi_StatusType oReturnCheck;
-     Fapi_FlashStatusWordType oFlashStatusWord;
-     volatile Fapi_FlashStatusType oFlashStatus;
+    Fapi_FlashStatusWordType oFlashStatusWord;
+    volatile Fapi_FlashStatusType oFlashStatus;
 
-     EALLOW;
-     oReturnCheck =  Fapi_initializeAPI(F021_CPU0_BASE_ADDRESS,CPUCLK_FREQUENCY);
-     if(oReturnCheck != Fapi_Status_Success)
-     {
-         // Check Flash API documentation for possible errors.
-         Error(oReturnCheck);
-     }
+    EALLOW;
+    oReturnCheck =  Fapi_initializeAPI(F021_CPU0_BASE_ADDRESS,CPUCLK_FREQUENCY);
+    if(oReturnCheck != Fapi_Status_Success) { FlahsError(oReturnCheck); }
 
-     oReturnCheck = Fapi_setActiveFlashBank(Fapi_FlashBank0);
-     if(oReturnCheck != Fapi_Status_Success)
-     {
-         // Check Flash API documentation for possible errors.
-         Error(oReturnCheck);
-     }
-     oReturnCheck = Fapi_issueAsyncCommandWithAddress(Fapi_EraseSector,
-                    (uint32 *)flashAddress);
-     if(oReturnCheck != Fapi_Status_Success)
-     {
-         // Check Flash API documentation for possible errors.
-         Error(oReturnCheck);
-     }
-     // Wait until FSM is done with erase sector operation.
-     while (Fapi_checkFsmForReady() != Fapi_Status_FsmReady)
-     {
-     }
-     //
-     // Verify that Sector C is erased. The erase step itself does verification
-     // as it goes. This verify is a second verification that can be done.
-     //
-     oReturnCheck = Fapi_doBlankCheck((uint32 *)flashAddress,
-                    userFlashLenght,
-                    &oFlashStatusWord);
+    oReturnCheck = Fapi_setActiveFlashBank(Fapi_FlashBank0);
+    if(oReturnCheck != Fapi_Status_Success) { FlahsError(oReturnCheck); }
+    oReturnCheck = Fapi_issueAsyncCommandWithAddress(Fapi_EraseSector,
+                                                     (uint32 *)flashAddress);
+    if(oReturnCheck != Fapi_Status_Success) { FlahsError(oReturnCheck); }
 
-     if(oReturnCheck != Fapi_Status_Success)
-     {
-         //
-         // Check Flash API documentation for possible errors.
-         // If erase command fails, use Fapi_getFsmStatus() function to get the
-         // FMSTAT register contents to see if any of the EV bit, ESUSP bit,
-         // CSTAT bit or VOLTSTAT bit is set. Refer to API documentation for
-         // more details.
-         //
-         Error(oReturnCheck);
-     }
-     //for(i=0;i<=WORDS_IN_FLASH_BUFFER;i++)
-     {
-         //         Buffer[i] = i;
-     }
-     //HWREGH(ADCA_BASE + ADC_O_OFFTRIM )
-     //int i=0;
-     //*(Buffer+0) = 21; *(Buffer+1) =  21; Buffer[2] =  21; Buffer[3] =  21; Buffer[4] =  i++; Buffer[5] =  i++; Buffer[6] =  i++; Buffer[7] =  i++;
+    while (Fapi_checkFsmForReady() != Fapi_Status_FsmReady) { }
+    oReturnCheck = Fapi_doBlankCheck((uint32 *)flashAddress,
+                                     userFlashLenght,
+                                     &oFlashStatusWord);
 
-     for(repeatCount =0; repeatCount < (len/8); repeatCount++ )
-     {
-         //i=0;
-         oReturnCheck = Fapi_issueProgrammingCommand(
-                        (uint32 *)(flashAddress + repeatCount*8) ,
-                        (uint16 *)(Buffer + repeatCount *8),
-                        8,
-                        0,
-                        0,
-                        Fapi_AutoEccGeneration);
+    if(oReturnCheck != Fapi_Status_Success) { FlahsError(oReturnCheck); }
 
-         //
-         // Wait until FSM is done with program operation.
-         //
-         while(Fapi_checkFsmForReady() == Fapi_Status_FsmBusy)
-         {
-         }
-         if(oReturnCheck != Fapi_Status_Success)
-          {
-              //
-              // Check Flash API documentation for possible errors.
-              //
-              Error(oReturnCheck);
-          }
-         oFlashStatus = Fapi_getFsmStatus();
+    for(i=0, u32Index = Bzero_SectorM_start;
+            (u32Index < (Bzero_SectorM_start + WORDS_IN_FLASH_BUFFER)) &&
+                    (oReturnCheck == Fapi_Status_Success); i+= 8, u32Index+= 8)
+    {
+        oReturnCheck = Fapi_issueProgrammingCommand((uint32 *)u32Index,Buffer+i,
+                                                    8,
+                                                    0,
+                                                    0,
+                                                    Fapi_AutoEccGeneration);
 
+        while(Fapi_checkFsmForReady() == Fapi_Status_FsmBusy) { }
+        if(oReturnCheck != Fapi_Status_Success)
+        {
+            FlahsError(oReturnCheck);
+        }
+        oFlashStatus = Fapi_getFsmStatus();
 
-
-         Buffer32 = (uint32 *)(Buffer+ repeatCount*8);
-
-         oReturnCheck = Fapi_doVerify(
-                         (uint32 *)(flashAddress+ repeatCount*8),
-                         4,
-                         Buffer32,
-                         &oFlashStatusWord);
-         int i;
-         for(i=0;i<8;i++){
-             if( ((uint16 *)(flashAddress+i+ repeatCount*8)) != ((uint16 *)(Buffer+ i+repeatCount*8)) )
-             {
-                 oReturnCheck = Fapi_Error_Fail;
-                 break;
-             }
-         }
-          if(oReturnCheck != Fapi_Status_Success)
-          {
-              //
-              // Check Flash API documentation for possible errors.
-               //
-              //Error(oReturnCheck);
-          }
-      }
-
-      EDIS;
-
-      EALLOW;
-      FlashPumpSemaphoreRegs.PUMPREQUEST.all = 0x5a5a0000 | 0x0;
-      EDIS;
-
-      Flash_setPumpPowerMode(FLASH0ECC_BASE,FLASH_PUMP_PWR_SLEEP);
-      //(*((volatile uint16_t *)((uintptr_t)(x))))
-      int16_t value;
-      value = HWREGH(flashAddress);
-      if(value == 0);
-      value = HWREGH(flashAddress+1);
-      if(value == 1);
+        oReturnCheck = Fapi_doVerify((uint32 *)u32Index,
+                                     4, Buffer32+(i/2),
+                                     &oFlashStatusWord);
+        if(oReturnCheck != Fapi_Status_Success)
+        {
+            FlahsError(oReturnCheck);
+        }
+        if(oReturnCheck != Fapi_Status_Success)
+        {
+            FlahsError(oReturnCheck);
+        }
+    }
+    EDIS;
 }
